@@ -22,8 +22,8 @@ import java.util.List;
 @RequestMapping("/api/messages")
 @RequiredArgsConstructor
 @Validated
-@CrossOrigin(origins = "http://localhost:8501")
 @Slf4j
+@CrossOrigin(origins = {"http://localhost:8501", "https://hybrid-chatbot-frontend.vercel.app/"})
 public class MessageController {
 
     private final OpenAiService openAiService;
