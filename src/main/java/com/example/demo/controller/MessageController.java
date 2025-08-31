@@ -6,6 +6,9 @@ import com.example.demo.service.ChatService;
 import com.example.demo.model.ChatMessage;
 import com.example.demo.service.OpenAiService;
 import com.google.cloud.dialogflow.v2.DetectIntentResponse;
+
+import lombok.extern.slf4j.Slf4j;
+
 import com.example.demo.service.DialogflowService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -20,6 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Validated
 @CrossOrigin(origins = "http://localhost:8501")
+@Slf4j
 public class MessageController {
 
     private final OpenAiService openAiService;
@@ -28,6 +32,9 @@ public class MessageController {
 
     @PostMapping("/receive")
     public Mono<ResponseEntity<MessageResponse>> receiveMessage(@Valid @RequestBody MessageRequest request) {
+    
+        log.info("Received message request: {}", request);
+    
         // 1. 사용자 메시지를 먼저 DB에 저장합니다. (이때 analysisInfo는 null 입니다)
     chatService.saveMessage(
         request.getSessionId(),
@@ -44,6 +51,7 @@ public class MessageController {
         request.getMessage(),
         request.getLanguageCode()
     );
+        log.info("Dialogflow response: {}", dialogflowResponse);
 
     // 3. Dialogflow 결과에서 필요한 정보를 추출합니다.
     String intentName = dialogflowResponse.getQueryResult().getIntent().getDisplayName();
