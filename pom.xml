@@ -80,6 +80,10 @@
 			<artifactId>google-cloud-dialogflow</artifactId>
 			<version>4.69.0</version> <!-- Use the latest version available -->
 		</dependency>
+		<dependency>
+    		<groupId>org.springframework.kafka</groupId>
+    		<artifactId>spring-kafka</artifactId>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
