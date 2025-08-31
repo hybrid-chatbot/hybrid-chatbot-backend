@@ -3,6 +3,11 @@
 credentials/
 application.properties
 
+# 민감한 환경 설정 파일
+application-dev.yml
+application-prod.yml
+application.yml.old
+
 # --- 로그 및 빌드 파일 ---
 *.log
 build/

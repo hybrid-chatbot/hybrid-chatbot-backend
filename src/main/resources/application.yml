@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: demo
+  profiles:
+    active: dev
+
+openai:
+  model: gpt-4o
+
+dialogflow:
+  project-id: hybrid-chatbot
