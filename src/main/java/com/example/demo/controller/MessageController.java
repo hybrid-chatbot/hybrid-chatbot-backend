@@ -20,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import java.util.List;
 import com.example.demo.kafka.MessageProducer;
 
+import java.util.Optional;
+
 @RestController
 @RequestMapping("/api/messages")
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class MessageController {
     private final OpenAiService openAiService;
     private final ChatService chatService;
     private final MessageProducer messageProducer;
+    private final ChatService chatMessageService;
 
     @PostMapping("/receive")
     public Mono<ResponseEntity<MessageResponse>> receiveMessage(@Valid @RequestBody MessageRequest request) {
@@ -58,6 +61,21 @@ public class MessageController {
         return Mono.just(ResponseEntity.ok(response));
     }
 
+    @GetMapping("/result/{sessionId}")
+    public ResponseEntity<ChatMessage> getMessageResult(@PathVariable String sessionId) {
+        // 서비스에게 sessionId를 주고, DB에서 가장 최근 메시지를 찾아달라고 요청합니다.
+        Optional<ChatMessage> latestMessage = chatMessageService.findLatestMessageBySessionId(sessionId);
+
+        // 메시지가 존재하고, 그 메시지에 Dialogflow의 응답이 있는지 확인합니다.
+        if (latestMessage.isPresent() && latestMessage.get().getDialogflowResponse() != null) {
+            // 결과가 준비되었다면, 메시지 데이터와 함께 200 OK 상태를 보냅니다.
+            return ResponseEntity.ok(latestMessage.get());
+        } else {
+            // 아직 결과가 준비되지 않았다면, 202 Accepted 상태를 보냅니다.
+            // 이것은 프론트엔드에게 "요청은 받았는데, 아직 처리 중이야"라고 알려주는 신호입니다.
+            return ResponseEntity.accepted().build();
+        }
+    }
 
     @GetMapping("/send")
     public ResponseEntity<List<ChatMessage>> sendMessages(@RequestParam String userId) {

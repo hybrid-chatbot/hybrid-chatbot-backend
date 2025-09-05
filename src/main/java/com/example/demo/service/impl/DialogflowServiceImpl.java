@@ -28,4 +28,5 @@ public class DialogflowServiceImpl implements DialogflowService {
 
         return sessionsClient.detectIntent(request);
     }
+
 }

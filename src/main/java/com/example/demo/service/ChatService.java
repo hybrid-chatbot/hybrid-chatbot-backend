@@ -4,6 +4,7 @@ import com.example.demo.model.ChatMessage;
 import com.example.demo.repository.ChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.Optional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,5 +38,11 @@ public class ChatService {
 
     public List<ChatMessage> getRecentMessagesByUserId(String userId) {
         return chatMessageRepository.findTop10ByUserIdOrderByTimestampDesc(userId);
+    }
+
+    public Optional<ChatMessage> findLatestMessageBySessionId(String sessionId) {
+        // MongoDB에서 sessionId로 메시지를 찾되, 생성 시간(timestamp)을 기준으로
+        // 내림차순 정렬해서 가장 위에 있는(가장 최근의) 1개만 가져옵니다.
+        return chatMessageRepository.findTopBySessionIdOrderByTimestampDesc(sessionId);
     }
 }

@@ -22,6 +22,8 @@ public class MessageConsumer {
     public void consume(MessageRequest request) {
         log.info("Consumed message: {}", request);
 
+        
+
         try {
             // 1. Dialogflow를 호출해서 의도를 분석합니다.
             DetectIntentResponse dialogflowResponse = dialogflowService.detectIntent(
@@ -30,7 +32,10 @@ public class MessageConsumer {
                     request.getLanguageCode()
             );
 
+            
+
             // 2. Dialogflow 결과에서 필요한 정보를 추출합니다.
+            
             String intentName = dialogflowResponse.getQueryResult().getIntent().getDisplayName();
             float intentScore = dialogflowResponse.getQueryResult().getIntentDetectionConfidence();
             String reply = dialogflowResponse.getQueryResult().getFulfillmentText();

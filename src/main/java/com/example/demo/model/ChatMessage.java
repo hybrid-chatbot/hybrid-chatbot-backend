@@ -17,7 +17,7 @@ public class ChatMessage {
     private String sessionId;
     private String userId;
     private String sender;
-    private String message;
+    private String message; // 사용자 메시지
     private String languageCode;
     private LocalDateTime timestamp;
     private AnalysisInfo analysisInfo; // ✨ analysisInfo 필드 추가
@@ -32,5 +32,9 @@ public class ChatMessage {
         private String intentName;
         private String originalIntentName;
         private float originalIntentScore;
+    }
+
+    public AnalysisInfo getDialogflowResponse() {
+            return this.analysisInfo;
     }
 }
