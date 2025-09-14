@@ -129,6 +129,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
     - name: Checkout code
@@ -161,6 +162,7 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+        logout: false
 
     - name: Extract metadata
       id: meta
@@ -182,6 +184,7 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        platforms: linux/amd64
 
   security-scan:
     needs: build
