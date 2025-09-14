@@ -74,10 +74,8 @@ jobs:
     - name: Run integration tests
       run: |
         echo "Running integration tests with Maven..."
-        ./mvnw clean test -Dspring.profiles.active=test -Dmaven.test.failure.ignore=true -X
+        ./mvnw clean test -Dspring.profiles.active=test -Dmaven.test.failure.ignore=true
         echo "Integration test execution completed"
-        echo "Checking if tests were executed..."
-        ./mvnw surefire-report:report || echo "Surefire report generation failed"
       env:
         MONGODB_URI: mongodb://localhost:27017/test
         KAFKA_BOOTSTRAP_SERVERS: localhost:9092

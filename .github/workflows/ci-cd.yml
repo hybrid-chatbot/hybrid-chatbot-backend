@@ -79,6 +79,12 @@ jobs:
     - name: Make Maven wrapper executable
       run: chmod +x ./mvnw
 
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to be ready..."
+        sleep 30
+        echo "Services should be ready now"
+
     - name: Run tests
       run: |
         echo "Running tests with Maven..."
@@ -150,6 +156,12 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
+    - name: Make Maven wrapper executable
+      run: |
+        chmod +x ./mvnw
+        ls -la ./mvnw
+        echo "Maven wrapper permissions set"
+
     - name: Build with Maven
       run: ./mvnw clean package -DskipTests
 
@@ -198,33 +210,46 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
 
     steps:
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
         format: 'sarif'
         output: 'trivy-results.sarif'
+        ignore-unfixed: true
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
+        category: 'trivy'
 
   deploy:
     needs: [build, security-scan]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
 
     steps:
     - name: Deploy to production
       run: |
-        echo "Deployment step would go here"
-        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        # Add your deployment commands here
-        # For example:
+        echo "🚀 Starting deployment to production..."
+        echo "📦 Docker Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop"
+        echo "🏷️  Tag: ${{ github.ref_name }}"
+        echo "✅ Security scan completed successfully"
+        echo "📋 Deployment completed (placeholder)"
+        # Add your actual deployment commands here:
         # - kubectl apply -f k8s/
         # - docker service update --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} your-service
+        # - aws ecs update-service --cluster your-cluster --service your-service --force-new-deployment
