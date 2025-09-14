@@ -68,9 +68,12 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
+    - name: Make Maven wrapper executable
+      run: chmod +x ./mvnw
+
     - name: Run integration tests
       run: |
-        ./mvnw test -Dspring.profiles.active=test
+        ./mvnw clean test -Dspring.profiles.active=test
       env:
         MONGODB_URI: mongodb://localhost:27017/test
         KAFKA_BOOTSTRAP_SERVERS: localhost:9092
@@ -78,9 +81,14 @@ jobs:
         DIALOGFLOW_PROJECT_ID: ${{ secrets.DIALOGFLOW_PROJECT_ID }}
         DIALOGFLOW_CREDENTIALS: ${{ secrets.DIALOGFLOW_CREDENTIALS }}
 
+    - name: Create test reports directory
+      if: always()
+      run: mkdir -p target/surefire-reports
+
     - name: Upload test results
-      if: failure()
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results
         path: target/surefire-reports/
+        if-no-files-found: warn
