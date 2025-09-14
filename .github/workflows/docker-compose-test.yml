@@ -73,7 +73,9 @@ jobs:
 
     - name: Run integration tests
       run: |
-        ./mvnw clean test -Dspring.profiles.active=test
+        echo "Running integration tests with Maven..."
+        ./mvnw clean test -Dspring.profiles.active=test -X
+        echo "Integration test execution completed"
       env:
         MONGODB_URI: mongodb://localhost:27017/test
         KAFKA_BOOTSTRAP_SERVERS: localhost:9092
