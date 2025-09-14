@@ -13,6 +13,10 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      checks: write
     
     services:
       mongodb:
@@ -78,10 +82,8 @@ jobs:
     - name: Run tests
       run: |
         echo "Running tests with Maven..."
-        ./mvnw clean test -Dmaven.test.failure.ignore=true -X
+        ./mvnw clean test -Dmaven.test.failure.ignore=true
         echo "Test execution completed"
-        echo "Checking if tests were executed..."
-        ./mvnw surefire-report:report || echo "Surefire report generation failed"
       env:
         SPRING_PROFILES_ACTIVE: test
         MONGODB_URI: mongodb://localhost:27017/test
@@ -114,14 +116,13 @@ jobs:
           echo '</testsuite>' >> target/surefire-reports/dummy-test-result.xml
         fi
 
-    - name: Generate test report
-      uses: dorny/test-reporter@v1
+    - name: Upload test results as artifact
       if: always()
+      uses: actions/upload-artifact@v4
       with:
-        name: Maven Tests
-        path: target/surefire-reports/*.xml
-        reporter: java-junit
-        fail-on-error: false
+        name: test-results
+        path: target/surefire-reports/
+        if-no-files-found: ignore
 
   build:
     needs: test
@@ -129,7 +130,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
     - name: Checkout code
