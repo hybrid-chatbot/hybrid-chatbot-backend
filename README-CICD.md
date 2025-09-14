@@ -59,7 +59,11 @@
 
 ```
 OPENAI_API_KEY=your_openai_api_key
-DIALOGFLOW_CREDENTIALS_PATH=path_to_credentials_json
+DIALOGFLOW_PROJECT_ID=hybrid-chatbot
+DIALOGFLOW_CREDENTIALS=your_dialogflow_service_account_json
+MONGODB_URI=mongodb://localhost:27017/test
+DOCKER_USERNAME=your_dockerhub_username
+DOCKER_PASSWORD=your_dockerhub_password
 ```
 
 ### 2. 환경별 설정
@@ -72,10 +76,13 @@ DIALOGFLOW_CREDENTIALS_PATH=path_to_credentials_json
 
 ```bash
 # 최신 이미지 실행
-docker run -p 8080:8080 ghcr.io/your-username/your-repo:latest
+docker run -p 8080:8080 your-dockerhub-username/hybrid-chatbot-backend:latest
 
 # 특정 태그 실행
-docker run -p 8080:8080 ghcr.io/your-username/your-repo:v1.0.0
+docker run -p 8080:8080 your-dockerhub-username/hybrid-chatbot-backend:v1.0.0
+
+# develop 브랜치 이미지 실행
+docker run -p 8080:8080 your-dockerhub-username/hybrid-chatbot-backend:develop
 ```
 
 ## 📊 모니터링

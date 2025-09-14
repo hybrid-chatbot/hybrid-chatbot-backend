@@ -7,8 +7,8 @@ on:
     branches: [ main, develop ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/hybrid-chatbot-backend
 
 jobs:
   test:
@@ -156,13 +156,19 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
+    - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
         logout: false
+
+    - name: Verify Docker login
+      run: |
+        echo "Verifying Docker login..."
+        echo ${{ secrets.DOCKER_PASSWORD }} | docker login ${{ env.REGISTRY }} -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        echo "Docker login successful"
 
     - name: Extract metadata
       id: meta
@@ -185,6 +191,8 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
   security-scan:
     needs: build
