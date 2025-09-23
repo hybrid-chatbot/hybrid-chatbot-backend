@@ -20,8 +20,8 @@ import java.util.Optional;
 public class ChatOrchestratorService {
 
     // --- ✨ 새로운 임계치 상수들을 추가합니다 ---
-    private static final double DIALOGFLOW_SCORE_THRESHOLD = 0.6;
-    private static final double SIMILARITY_SCORE_THRESHOLD = 0.5; // 의미 유사도 기준 점수
+    private static final double DIALOGFLOW_SCORE_THRESHOLD = 0.0;
+    private static final double SIMILARITY_SCORE_THRESHOLD = 0.0; // 의미 유사도 기준 점수
 
     // --- ✨ 필요한 모든 전문가(서비스)들을 불러옵니다 ---
     private final DialogflowService dialogflowService;
@@ -97,8 +97,19 @@ public class ChatOrchestratorService {
     private void handleLowConfidenceIntent(MessageRequest request, String originalIntentName, float originalIntentScore) {
         log.info("Dialogflow 점수가 낮거나(score: {}), 의미 유사도 검증 실패. Python AI 서버 호출 시작.", originalIntentScore);
         List<String> allIntents = List.of(
-            "배송_조회", "단순_환불_문의", "주문_취소",
-            "쿠폰_및_세일_중복적용_문의", "특별세일_상품_환불_문의"
+            // 그룹 A: RAG가 해결할 복잡한 의도
+            "환불절차문의_VIP혜택",
+            "환불금액문의_쿠폰사용",
+            "환불혜택문의_등급변경",
+            "콜라보상품_중복할인_문의",
+            "이벤트_중복할인_문의",
+            "콜라보상품_환불_문의",
+            // 그룹 B: Dialogflow가 기본적으로 학습할 단순 의도
+            "배송_조회",
+            "일반_환불_문의",
+            "일반_교환_문의",
+            "주문_수정",
+            "주문_취소"
         );
         AiServerResponse aiResponse = aiServerService.classifyIntent(request.getMessage(), allIntents);
         if (aiResponse != null) {
