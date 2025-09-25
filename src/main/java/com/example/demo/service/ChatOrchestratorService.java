@@ -5,7 +5,7 @@ package com.example.demo.service;
 import com.example.demo.dto.AiServerResponse;
 import com.example.demo.dto.MessageRequest;
 import com.example.demo.model.ChatMessage;
-import com.example.demo.utils.CosineSimilarityCalculator; // ✨ 계산기 import
+import com.example.demo.utils.CosineSimilarityCalculator;
 import com.google.cloud.dialogflow.v2.DetectIntentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,17 +19,17 @@ import java.util.Optional;
 @Slf4j
 public class ChatOrchestratorService {
 
-    // --- ✨ 새로운 임계치 상수들을 추가합니다 ---
-    private static final double DIALOGFLOW_SCORE_THRESHOLD = 0.0;
+    // 임계치 상수
+    private static final double DIALOGFLOW_SCORE_THRESHOLD = 0.6;
     private static final double SIMILARITY_SCORE_THRESHOLD = 0.0; // 의미 유사도 기준 점수
 
-    // --- ✨ 필요한 모든 전문가(서비스)들을 불러옵니다 ---
+    // 서비스 의존성 주입
     private final DialogflowService dialogflowService;
     private final AiServerService aiServerService;
     private final IntentResponseService intentResponseService;
     private final ChatService chatService;
-    private final EmbeddingService embeddingService; // ✨ 번역기 전문가
-    private final IntentRepresentativeService intentRepresentativeService; // ✨ 문장 관리자 전문가
+    private final EmbeddingService embeddingService; // 
+    private final IntentRepresentativeService intentRepresentativeService; //  문장 관리자 전문가
 
     public void processMessage(MessageRequest request) {
         try {

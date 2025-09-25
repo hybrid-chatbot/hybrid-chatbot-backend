@@ -31,17 +31,17 @@ public class EmbeddingService {
                 .build();
 
         String url = aiServerUrl + "/embed";
-        log.info("Python AI 서버에 임베딩을 요청합니다. URL: {}", url);
+        // log.info("Python AI 서버에 임베딩을 요청합니다. URL: {}", url);
 
         try {
             EmbeddingResponse response = restTemplate.postForObject(url, requestPayload, EmbeddingResponse.class);
             if (response != null && response.getEmbeddings() != null) {
-                log.info("Python AI 서버로부터 {}개의 임베딩 벡터를 받았습니다.", response.getEmbeddings().size());
+                // log.info("Python AI 서버로부터 {}개의 임베딩 벡터를 받았습니다.", response.getEmbeddings().size());
                 return response.getEmbeddings();
             }
             return null;
         } catch (Exception e) {
-            log.error("Python AI 서버 임베딩 호출 중 오류가 발생했습니다.", e);
+            // log.error("Python AI 서버 임베딩 호출 중 오류가 발생했습니다.", e);
             return null;
         }
     }
