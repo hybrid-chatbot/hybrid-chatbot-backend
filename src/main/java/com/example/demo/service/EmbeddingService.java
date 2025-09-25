@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.util.List;
+import org.springframework.cache.annotation.Cacheable;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class EmbeddingService {
      * @param texts 임베딩을 원하는 텍스트 리스트
      * @return 각 텍스트에 대한 임베딩 벡터 리스트
      */
+    @Cacheable("embeddings")
     public List<List<Double>> getEmbeddings(List<String> texts) {
         EmbeddingRequest requestPayload = EmbeddingRequest.builder()
                 .texts(texts)
