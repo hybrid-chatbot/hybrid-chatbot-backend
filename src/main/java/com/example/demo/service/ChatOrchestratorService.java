@@ -3,6 +3,7 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.AiServerResponse;
+import com.example.demo.dto.AnalysisTrace; 
 import com.example.demo.dto.MessageRequest;
 import com.example.demo.model.ChatMessage;
 import com.example.demo.utils.CosineSimilarityCalculator;
@@ -32,6 +33,9 @@ public class ChatOrchestratorService {
     private final IntentRepresentativeService intentRepresentativeService; //  문장 관리자 전문가
 
     public void processMessage(MessageRequest request) {
+        // ✨ 1. '생각의 흔적'을 기록할 노트를 새로 만듭니다.
+        AnalysisTrace.Builder traceBuilder = AnalysisTrace.builder();
+
         try {
             DetectIntentResponse dialogflowResponse = dialogflowService.detectIntent(
                     request.getSessionId(),
@@ -43,22 +47,20 @@ public class ChatOrchestratorService {
             float intentScore = dialogflowResponse.getQueryResult().getIntentDetectionConfidence();
             String dialogflowReply = dialogflowResponse.getQueryResult().getFulfillmentText();
 
-            // --- ✨ 여기가 바로 새로 추가된 '교차 검증 안전망' 로직입니다! ---
-            // 1. Dialogflow 점수가 높은가?
+            // ✨ 2. Dialogflow의 1차 분석 결과를 노트에 기록합니다.
+            traceBuilder.dialogflowIntent(originalIntentName).dialogflowScore(intentScore);
+
             if (intentScore >= DIALOGFLOW_SCORE_THRESHOLD) {
-                // 2. 점수가 높더라도, 정말 믿을 수 있는지 2차 검증을 수행한다.
-                if (isSemanticallySimilar(request.getMessage(), originalIntentName)) {
-                    // 3. 2차 검증까지 통과하면, Dialogflow의 답변을 신뢰한다.
+                // ✨ 3. 2차 검증을 수행하고, 그 과정을 노트에 기록합니다.
+                if (isSemanticallySimilar(request.getMessage(), originalIntentName, traceBuilder)) {
                     log.info("Dialogflow 점수가 높고(score: {}), 의미 유사도 검증 통과. Dialogflow 응답 사용.", intentScore);
-                    handleHighConfidenceIntent(request, originalIntentName, intentScore, dialogflowReply);
+                    handleHighConfidenceIntent(request, originalIntentName, intentScore, dialogflowReply, traceBuilder.build());
                 } else {
-                    // 4. Dialogflow 점수는 높았지만, 의미가 다르다고 판단되면 RAG 전문가에게 넘긴다.
                     log.warn("Dialogflow 점수는 높았지만(score: {}), 의미 유사도가 낮아 RAG를 호출합니다.", intentScore);
-                    handleLowConfidenceIntent(request, originalIntentName, intentScore);
+                    handleLowConfidenceIntent(request, originalIntentName, intentScore, traceBuilder);
                 }
             } else {
-                // 5. Dialogflow 점수 자체가 낮으면, 원래대로 RAG 전문가에게 넘긴다.
-                handleLowConfidenceIntent(request, originalIntentName, intentScore);
+                handleLowConfidenceIntent(request, originalIntentName, intentScore, traceBuilder);
             }
 
         } catch (Exception e) {
@@ -70,31 +72,32 @@ public class ChatOrchestratorService {
      * 사용자의 질문과 Dialogflow가 예측한 의도의 대표 문장 간의 의미 유사도를 검증합니다.
      * @return 의미적으로 유사하면 true, 그렇지 않으면 false
      */
-    private boolean isSemanticallySimilar(String userQuestion, String intentName) {
-        // 1. '문장 관리자'에게 의도의 대표 문장을 물어봅니다.
+    private boolean isSemanticallySimilar(String userQuestion, String intentName, AnalysisTrace.Builder traceBuilder) {
         Optional<String> representativeTextOpt = intentRepresentativeService.getRepresentativeText(intentName);
         if (representativeTextOpt.isEmpty()) {
-            return true; // 대표 문장이 없으면 검증을 통과시킵니다.
+            return true;
         }
         String representativeText = representativeTextOpt.get();
 
-        // 2. '번역기 전문가'에게 두 문장의 번역(임베딩)을 요청합니다.
         List<List<Double>> embeddings = embeddingService.getEmbeddings(List.of(userQuestion, representativeText));
         if (embeddings == null || embeddings.size() < 2) {
-            return false; // 임베딩 실패 시, 안전을 위해 검증 실패로 처리합니다.
+            return false;
         }
 
-        // 3. '계산기'를 사용해 두 벡터의 유사도를 계산합니다.
         double similarity = CosineSimilarityCalculator.calculate(embeddings.get(0), embeddings.get(1));
         log.info("의미 유사도 검증 결과: '{}' vs '{}' = {}", userQuestion, representativeText, similarity);
 
-        // 4. 계산된 점수가 우리가 정한 기준보다 높은지 확인하여 결과를 반환합니다.
-        return similarity >= SIMILARITY_SCORE_THRESHOLD;
+        // ✨ 4. 2차 검증 결과(유사도 점수, 판단)를 노트에 기록합니다.
+        traceBuilder.similarityScore(similarity);
+        boolean isSimilar = similarity >= SIMILARITY_SCORE_THRESHOLD;
+        traceBuilder.safetyNetJudgement(isSimilar ? "유사도 검증 통과" : "RAG 호출 결정");
+
+        return isSimilar;
     }
 
     // handleLowConfidenceIntent(...)와 handleHighConfidenceIntent(...) 메서드는 이전과 동일합니다.
     // (이하 생략)
-    private void handleLowConfidenceIntent(MessageRequest request, String originalIntentName, float originalIntentScore) {
+    private void handleLowConfidenceIntent(MessageRequest request, String originalIntentName, float originalIntentScore, AnalysisTrace.Builder traceBuilder) {
         log.info("Dialogflow 점수가 낮거나(score: {}), 의미 유사도 검증 실패. Python AI 서버 호출 시작.", originalIntentScore);
         List<String> allIntents = List.of(
             // 그룹 A: RAG가 해결할 복잡한 의도
@@ -113,29 +116,34 @@ public class ChatOrchestratorService {
         );
         AiServerResponse aiResponse = aiServerService.classifyIntent(request.getMessage(), allIntents);
         if (aiResponse != null) {
+            // ✨ 5. RAG의 최종 분석 결과를 노트에 기록합니다.
+            traceBuilder.ragFinalIntent(aiResponse.getFinal_intent());
+            traceBuilder.finalEngine(aiResponse.getEngine());
+            
             String finalIntent = aiResponse.getFinal_intent();
             String fixedResponse = intentResponseService.getResponseForIntent(finalIntent);
             ChatMessage.AnalysisInfo analysisInfo = ChatMessage.AnalysisInfo.builder()
                     .engine(aiResponse.getEngine()).intentName(finalIntent)
                     .originalIntentName(originalIntentName).originalIntentScore(originalIntentScore)
                     .build();
+            // ✨ 6. 완성된 '생각 노트'와 함께 최종 결과를 저장합니다.
             chatService.saveMessage(
                     request.getSessionId(), request.getUserId(), "bot",
-                    fixedResponse, request.getLanguageCode(), analysisInfo
+                    fixedResponse, request.getLanguageCode(), analysisInfo, traceBuilder.build() // trace 추가
             );
         } else {
             log.warn("Python AI 서버 호출에 실패했습니다. Dialogflow의 응답으로 대체합니다.");
-            handleHighConfidenceIntent(request, originalIntentName, originalIntentScore, "죄송해요, 지금은 AI 서버에 문제가 있어 답변을 드릴 수 없어요.");
+            handleHighConfidenceIntent(request, originalIntentName, originalIntentScore, "죄송해요, 지금은 AI 서버에 문제가 있어 답변을 드릴 수 없어요.", traceBuilder.build());
         }
     }
-    private void handleHighConfidenceIntent(MessageRequest request, String intentName, float intentScore, String reply) {
+    private void handleHighConfidenceIntent(MessageRequest request, String intentName, float intentScore, String reply, AnalysisTrace trace) {
         ChatMessage.AnalysisInfo analysisInfo = ChatMessage.AnalysisInfo.builder()
                 .engine("dialogflow").intentName(intentName)
                 .originalIntentName(intentName).originalIntentScore(intentScore)
                 .build();
         chatService.saveMessage(
                 request.getSessionId(), request.getUserId(), "bot",
-                reply, request.getLanguageCode(), analysisInfo
+                reply, request.getLanguageCode(), analysisInfo, trace // trace 추가
         );
     }
 }
