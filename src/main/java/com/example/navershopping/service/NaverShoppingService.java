@@ -339,4 +339,24 @@ public class NaverShoppingService {
         
         return null;
     }
+
+    /**
+     * 인기 상품 조회 (검색 횟수 기준)
+     * 
+     * @return 인기 상품 목록
+     */
+    public List<NaverShoppingItem> getPopularProducts() {
+        log.info("인기 상품 조회 시작");
+        return itemRepository.findTop10ByOrderBySearchCountDesc();
+    }
+
+    /**
+     * 최신 상품 조회 (최근 검색 시간 기준)
+     * 
+     * @return 최신 상품 목록
+     */
+    public List<NaverShoppingItem> getRecentProducts() {
+        log.info("최신 상품 조회 시작");
+        return itemRepository.findTop10ByOrderByLastSearchedAtDesc();
+    }
 }

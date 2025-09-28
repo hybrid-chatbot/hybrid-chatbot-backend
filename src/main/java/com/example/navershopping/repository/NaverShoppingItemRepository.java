@@ -40,4 +40,21 @@ public interface NaverShoppingItemRepository extends JpaRepository<NaverShopping
     
     @Query("SELECT DISTINCT n.category1 FROM NaverShoppingItem n WHERE n.category1 IS NOT NULL")
     List<String> findDistinctCategory1();
+    
+    // 추가 쿼리 메서드들
+    List<NaverShoppingItem> findByTitleContainingIgnoreCase(String title);
+    
+    List<NaverShoppingItem> findBySearchQueryOrderByLastSearchedAtDesc(String searchQuery);
+    
+    @Query("SELECT n FROM NaverShoppingItem n ORDER BY n.searchCount DESC LIMIT 10")
+    List<NaverShoppingItem> findTop10ByOrderBySearchCountDesc();
+    
+    @Query("SELECT n FROM NaverShoppingItem n ORDER BY n.lastSearchedAt DESC LIMIT 10")
+    List<NaverShoppingItem> findTop10ByOrderByLastSearchedAtDesc();
+    
+    @Query("SELECT n FROM NaverShoppingItem n WHERE n.category1 = :category1 AND n.id != :id")
+    List<NaverShoppingItem> findByCategory1AndIdNot(@Param("category1") String category1, @Param("id") Long id);
+    
+    @Query("SELECT n FROM NaverShoppingItem n WHERE n.brand = :brand AND n.id != :id")
+    List<NaverShoppingItem> findByBrandAndIdNot(@Param("brand") String brand, @Param("id") Long id);
 }
