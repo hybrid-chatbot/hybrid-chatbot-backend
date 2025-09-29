@@ -41,7 +41,7 @@ public class ChatMessage {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ShoppingData {
-        private String intentType; // "search", "filter", "recommend", "compare"
+        private String intentType; // "product_search", "product_filter", "product_recommendation", "product_compare"
         private String productCategory;
         private String brand;
         private String color;
@@ -63,20 +63,22 @@ public class ChatMessage {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ProductInfo {
-        private Long id;
+        private Long id; // JPA 엔티티 PK (프론트 키로 사용)
         private String title;
         private String image;
         private String link;
-        private Integer lprice;
-        private Integer hprice;
+        private Integer lprice; // 최저가
+        private Integer hprice; // 최고가
         private String mallName;
         private String brand;
-        private String category1;
-        private String category2;
+        private String category1; // 대분류
+        private String category2; // 중분류
+        private String category3;
+        private String category4;
         private String productType;
         private String maker;
-        private Integer searchCount;
-        private String lastSearchedAt;
+        private Integer searchCount; // 누적 검색 횟수 (추천 가중치)
+        private String lastSearchedAt; // 마지막 검색 시각
         private String priceFormatted;
         private String discountRate;
         private boolean isRecommended;
