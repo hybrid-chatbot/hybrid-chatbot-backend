@@ -45,7 +45,7 @@ public class NaverShoppingService {
                                  query, display, start);
         
         HttpHeaders headers = new HttpHeaders();
-        headers.set("client-id", clientId);
+        headers.set("X-Naver-Client-id", clientId);
         headers.set("X-Naver-Client-Secret", clientSecret);
         
         HttpEntity<String> entity = new HttpEntity<>(headers);
