@@ -95,8 +95,6 @@ public class ChatOrchestratorService {
         return isSimilar;
     }
 
-    // handleLowConfidenceIntent(...)와 handleHighConfidenceIntent(...) 메서드는 이전과 동일합니다.
-    // (이하 생략)
     private void handleLowConfidenceIntent(MessageRequest request, String originalIntentName, float originalIntentScore, AnalysisTrace.Builder traceBuilder) {
         log.info("Dialogflow 점수가 낮거나(score: {}), 의미 유사도 검증 실패. Python AI 서버 호출 시작.", originalIntentScore);
         List<String> allIntents = List.of(
