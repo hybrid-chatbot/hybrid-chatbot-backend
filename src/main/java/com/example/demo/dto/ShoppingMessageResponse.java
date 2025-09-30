@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/*
+/**
  * 쇼핑 챗봇 메시지 응답 DTO
  * 
  * 쇼핑 챗봇에서 사용자에게 보내는 응답을 담는 데이터 전송 객체입니다.
@@ -22,8 +22,6 @@ import java.util.List;
  * - 분석 정보 (analysisInfo)
  * - 타임스탬프 (timestamp)
  */
-
-
 @Data
 @Builder
 @NoArgsConstructor
