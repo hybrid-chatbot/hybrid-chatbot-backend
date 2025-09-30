@@ -43,7 +43,6 @@ public class ChatService {
         chatMessageRepository.save(chatMessage);
     }
 
-
     public List<ChatMessage> getRecentMessagesBySessionId(String sessionId) {
         return chatMessageRepository.findTop10BySessionIdOrderByTimestampDesc(sessionId);
     }
