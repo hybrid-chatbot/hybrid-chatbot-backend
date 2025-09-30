@@ -32,25 +32,6 @@ public class ChatService {
         chatMessageRepository.save(chatMessage);
     }
 
-    /**
-     * 쇼핑 데이터를 포함한 채팅 메시지를 저장합니다.
-     */
-    public void saveMessageWithShoppingData(String sessionId, String userId, String sender, String message, 
-                                          String languageCode, ChatMessage.AnalysisInfo analysisInfo, 
-                                          ChatMessage.ShoppingData shoppingData) {
-        ChatMessage chatMessage = ChatMessage.builder()
-                .sessionId(sessionId)
-                .userId(userId)
-                .sender(sender)
-                .message(message)
-                .languageCode(languageCode)
-                .timestamp(LocalDateTime.now())
-                .analysisInfo(analysisInfo)
-                .shoppingData(shoppingData) // 쇼핑 데이터 추가
-                .build();
-        chatMessageRepository.save(chatMessage);
-    }
-
     public List<ChatMessage> getRecentMessagesBySessionId(String sessionId) {
         return chatMessageRepository.findTop10BySessionIdOrderByTimestampDesc(sessionId);
     }
