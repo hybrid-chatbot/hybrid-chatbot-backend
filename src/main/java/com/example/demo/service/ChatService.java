@@ -1,4 +1,3 @@
-// src/main/java/com/example/demo/service/ChatService.java
 package com.example.demo.service;
 
 import com.example.demo.dto.AnalysisTrace; // ✨ AnalysisTrace import
@@ -42,7 +41,6 @@ public class ChatService {
                 .build();
         chatMessageRepository.save(chatMessage);
     }
-
 
     public List<ChatMessage> getRecentMessagesBySessionId(String sessionId) {
         return chatMessageRepository.findTop10BySessionIdOrderByTimestampDesc(sessionId);

@@ -1,4 +1,3 @@
-// src/main/java/com/example/demo/model/ChatMessage.java
 package com.example.demo.model;
 
 import com.example.demo.dto.AnalysisTrace; // ✨ AnalysisTrace import

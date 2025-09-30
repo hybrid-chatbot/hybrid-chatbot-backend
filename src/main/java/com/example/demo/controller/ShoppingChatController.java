@@ -21,7 +21,7 @@ public class ShoppingChatController {
     @PostMapping("/search")
     public ResponseEntity<ShoppingMessageResponse> searchProducts(@Valid @RequestBody ShoppingRequest request) {
         log.info("쇼핑 검색 요청: {}", request);
-        
+
         try {
             ShoppingMessageResponse response = shoppingService.searchProducts(request);
             return ResponseEntity.ok(response);

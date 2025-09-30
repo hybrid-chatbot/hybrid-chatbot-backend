@@ -46,25 +46,25 @@ public class IntentBasedSearchService {
                     // 일반 상품 검색
                     products = searchProductsByQuery(originalQuery);
                     break;
-                    
+
                 case "product_recommendation":
                 case "recommend_products":
                     // 추천 상품 검색
                     products = searchRecommendedProducts(originalQuery, parameters);
                     break;
-                    
+
                 case "product_filter":
                 case "filter_products":
                     // 필터링된 상품 검색
                     products = searchFilteredProducts(originalQuery, parameters);
                     break;
-                    
+
                 case "product_compare":
                 case "compare_products":
                     // 상품 비교를 위한 검색
                     products = searchProductsForComparison(originalQuery, parameters);
                     break;
-                    
+
                 default:
                     // 기본적으로 일반 검색 수행
                     log.warn("알 수 없는 의도: {}, 일반 검색으로 처리", intentName);
@@ -99,22 +99,22 @@ public class IntentBasedSearchService {
      */
     private List<NaverShoppingItem> searchProductsByQuery(String query) {
         log.info("일반 상품 검색 실행 - 쿼리: {}", query);
-        
+
         // 먼저 저장된 상품에서 검색 시도
         List<NaverShoppingItem> savedProducts = naverShoppingService.getSavedProductsByQuery(query);
-        
+
         if (!savedProducts.isEmpty()) {
             log.info("저장된 상품에서 {}개 검색됨", savedProducts.size());
             return savedProducts.stream().limit(10).toList();
         }
-        
+
         // 저장된 상품이 없으면 제목으로 검색
         savedProducts = naverShoppingService.getSavedProductsByTitle(query);
         if (!savedProducts.isEmpty()) {
             log.info("제목 검색으로 {}개 검색됨", savedProducts.size());
             return savedProducts.stream().limit(10).toList();
         }
-        
+
         // 저장된 상품이 전혀 없으면 빈 리스트 반환
         log.warn("검색 결과가 없음 - 쿼리: {}", query);
         return List.of();
@@ -125,14 +125,14 @@ public class IntentBasedSearchService {
      */
     private List<NaverShoppingItem> searchRecommendedProducts(String query, Map<String, Object> parameters) {
         log.info("추천 상품 검색 실행 - 쿼리: {}, 파라미터: {}", query, parameters);
-        
+
         // 추천 로직: 검색 횟수가 많은 상품들을 우선적으로 반환
         List<NaverShoppingItem> allProducts = naverShoppingService.getSavedProductsByQuery(query);
-        
+
         if (allProducts.isEmpty()) {
             allProducts = naverShoppingService.getSavedProductsByTitle(query);
         }
-        
+
         // 검색 횟수 기준으로 정렬하여 상위 10개 반환
         return allProducts.stream()
                 .sorted((a, b) -> Integer.compare(b.getSearchCount(), a.getSearchCount()))
@@ -145,43 +145,43 @@ public class IntentBasedSearchService {
      */
     private List<NaverShoppingItem> searchFilteredProducts(String query, Map<String, Object> parameters) {
         log.info("필터링된 상품 검색 실행 - 쿼리: {}, 파라미터: {}", query, parameters);
-        
+
         List<NaverShoppingItem> products = naverShoppingService.getSavedProductsByQuery(query);
-        
+
         if (products.isEmpty()) {
             products = naverShoppingService.getSavedProductsByTitle(query);
         }
-        
+
         // 가격 필터링
         if (parameters.containsKey("minPrice") || parameters.containsKey("maxPrice")) {
             Integer minPrice = (Integer) parameters.getOrDefault("minPrice", 0);
             Integer maxPrice = (Integer) parameters.getOrDefault("maxPrice", Integer.MAX_VALUE);
-            
+
             products = products.stream()
-                    .filter(item -> item.getLprice() != null && 
-                                   item.getLprice() >= minPrice && 
-                                   item.getLprice() <= maxPrice)
+                    .filter(item -> item.getLprice() != null &&
+                            item.getLprice() >= minPrice &&
+                            item.getLprice() <= maxPrice)
                     .toList();
         }
-        
+
         // 브랜드 필터링
         if (parameters.containsKey("brand")) {
             String brand = (String) parameters.get("brand");
             products = products.stream()
-                    .filter(item -> item.getBrand() != null && 
-                                   item.getBrand().toLowerCase().contains(brand.toLowerCase()))
+                    .filter(item -> item.getBrand() != null &&
+                            item.getBrand().toLowerCase().contains(brand.toLowerCase()))
                     .toList();
         }
-        
+
         // 쇼핑몰 필터링
         if (parameters.containsKey("mallName")) {
             String mallName = (String) parameters.get("mallName");
             products = products.stream()
-                    .filter(item -> item.getMallName() != null && 
-                                   item.getMallName().toLowerCase().contains(mallName.toLowerCase()))
+                    .filter(item -> item.getMallName() != null &&
+                            item.getMallName().toLowerCase().contains(mallName.toLowerCase()))
                     .toList();
         }
-        
+
         return products.stream().limit(10).toList();
     }
 
@@ -190,14 +190,14 @@ public class IntentBasedSearchService {
      */
     private List<NaverShoppingItem> searchProductsForComparison(String query, Map<String, Object> parameters) {
         log.info("상품 비교 검색 실행 - 쿼리: {}, 파라미터: {}", query, parameters);
-        
+
         // 비교를 위해 다양한 조건으로 검색하여 다양한 상품들을 반환
         List<NaverShoppingItem> products = naverShoppingService.getSavedProductsByQuery(query);
-        
+
         if (products.isEmpty()) {
             products = naverShoppingService.getSavedProductsByTitle(query);
         }
-        
+
         // 가격대별로 다양한 상품들을 반환 (최저가, 중간가, 최고가)
         return products.stream()
                 .sorted((a, b) -> {
