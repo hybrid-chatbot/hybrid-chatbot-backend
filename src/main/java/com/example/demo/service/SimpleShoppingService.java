@@ -17,13 +17,13 @@ import java.util.stream.Collectors;
 
 /**
  * 간단한 쇼핑 서비스
- * 
+ *
  * 이 서비스는 쇼핑몰 챗봇의 핵심 기능을 제공합니다:
  * - 사용자 키워드로 상품 검색
  * - 브랜드, 카테고리, 가격별 필터링 검색
  * - 인기 상품 및 최신 상품 조회
  * - 검색 결과를 채팅 UI용 응답 형태로 변환
- * 
+ *
  * 주요 특징:
  * - 기존 DB 데이터 우선 검색, 부족하면 네이버 API 호출
  * - 검색 결과를 상품 카드 형태로 시각화
@@ -42,18 +42,18 @@ public class SimpleShoppingService {
 
     /**
      * 키워드로 상품 검색
-     * 
+     *
      * 사용자가 입력한 키워드(예: "나이키 운동화", "청바지")로 상품을 검색합니다.
-     * 
+     *
      * 검색 과정:
      * 1. 먼저 데이터베이스에서 기존 상품 검색
      * 2. 결과가 5개 미만이면 네이버 API를 호출하여 새 상품 검색 및 저장
      * 3. 검색 결과를 채팅 UI용 응답 형태로 변환
-     * 
+     *
      * @param query 사용자가 입력한 검색 키워드
      * @return 상품 검색 결과가 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProducts(String query) {
         log.info("상품 검색 시작: {}", query);
         
@@ -82,13 +82,13 @@ public class SimpleShoppingService {
 
     /**
      * 브랜드별 상품 검색
-     * 
+     *
      * 특정 브랜드(예: "나이키", "아디다스")의 상품들을 검색합니다.
-     * 
+     *
      * @param brand 검색할 브랜드명
      * @return 해당 브랜드의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByBrand(String brand) {
         log.info("브랜드별 상품 검색 시작: {}", brand);
         
@@ -114,13 +114,13 @@ public class SimpleShoppingService {
 
     /**
      * 카테고리별 상품 검색
-     * 
+     *
      * 특정 카테고리(예: "청바지", "운동화", "가방")의 상품들을 검색합니다.
-     * 
+     *
      * @param category 검색할 카테고리명
      * @return 해당 카테고리의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByCategory(String category) {
         log.info("카테고리별 상품 검색 시작: {}", category);
         
@@ -146,14 +146,14 @@ public class SimpleShoppingService {
 
     /**
      * 가격 범위별 상품 검색
-     * 
+     *
      * 지정된 가격 범위 내의 상품들을 검색합니다.
-     * 
+     *
      * @param minPrice 최소 가격 (원)
      * @param maxPrice 최대 가격 (원)
      * @return 해당 가격 범위의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByPriceRange(Integer minPrice, Integer maxPrice) {
         log.info("가격 범위별 상품 검색 시작: {}원 ~ {}원", minPrice, maxPrice);
         
@@ -172,12 +172,12 @@ public class SimpleShoppingService {
 
     /**
      * 인기 상품 조회
-     * 
+     *
      * 검색 횟수가 많은 상위 10개 상품을 조회합니다.
-     * 
+     *
      * @return 인기 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse getPopularProducts() {
         log.info("인기 상품 조회 시작");
         
@@ -196,12 +196,12 @@ public class SimpleShoppingService {
 
     /**
      * 최신 상품 조회
-     * 
+     *
      * 최근에 검색된 상위 10개 상품을 조회합니다.
-     * 
+     *
      * @return 최신 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse getRecentProducts() {
         log.info("최신 상품 조회 시작");
         
@@ -220,22 +220,22 @@ public class SimpleShoppingService {
 
     /**
      * 상품 상세 정보 조회
-     * 
+     *
      * 특정 상품의 상세 정보를 조회합니다.
-     * 
+     *
      * @param id 조회할 상품의 ID
      * @return 상품 상세 정보 (없으면 null)
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public NaverShoppingItem getProductDetail(Long id) {
         return itemRepository.findById(id).orElse(null);
     }
 
     /**
      * 검색 응답 생성
-     * 
+     *
      * 검색된 상품들을 채팅 UI에서 표시할 수 있는 응답 형태로 변환합니다.
-     * 
+     *
      * @param query 검색 키워드
      * @param products 검색된 상품 목록
      * @return 채팅 UI용 응답 객체
@@ -269,9 +269,9 @@ public class SimpleShoppingService {
 
     /**
      * 추천 응답 생성
-     * 
+     *
      * 추천 상품들을 채팅 UI에서 표시할 수 있는 응답 형태로 변환합니다.
-     * 
+     *
      * @param type 추천 타입 (예: "인기 상품", "최신 상품")
      * @param products 추천 상품 목록
      * @return 채팅 UI용 응답 객체
@@ -303,9 +303,9 @@ public class SimpleShoppingService {
 
     /**
      * 에러 응답 생성
-     * 
+     *
      * 검색 중 오류가 발생했을 때 사용자에게 보여줄 에러 응답을 생성합니다.
-     * 
+     *
      * @param query 검색 키워드
      * @return 에러 메시지가 포함된 응답 객체
      */
