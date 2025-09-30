@@ -25,5 +25,4 @@ public class MessageRequest {
 
     @NotBlank(message = "languageCode는 필수입니다.")
     private String languageCode;
-    
 }
