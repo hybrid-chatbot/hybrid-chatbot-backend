@@ -3,9 +3,17 @@ spring:
     name: demo
   profiles:
     active: dev
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 openai:
   model: gpt-4o
 
 dialogflow:
   project-id: hybrid-chatbot
+
+ai:
+  server:
+    url: http://127.0.0.1:8000

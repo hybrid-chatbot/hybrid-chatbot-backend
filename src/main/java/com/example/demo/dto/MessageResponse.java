@@ -8,5 +8,6 @@ import lombok.Data;
 @Builder
 public class MessageResponse {
     private String userId;
-    private String response;
+    private String response; // 최종 응답 메시지
+    private AnalysisTrace analysisTrace; // 분석 추적 정보
 }
