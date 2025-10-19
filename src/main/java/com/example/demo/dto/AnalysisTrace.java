@@ -27,10 +27,13 @@ public class AnalysisTrace {
     // 최종적으로 선택된 엔진
     private String finalEngine;
 
+<<<<<<< HEAD
     // ✨ 쇼핑 관련 추적 정보
     private String shoppingIntent;
     private Integer shoppingResults;
 
+=======
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
     // Builder 패턴 구현
     public static Builder builder() {
         return new Builder();
@@ -44,8 +47,11 @@ public class AnalysisTrace {
         private String ragFinalIntent;
         private List<String> retrievedDocuments;
         private String finalEngine;
+<<<<<<< HEAD
         private String shoppingIntent;
         private Integer shoppingResults;
+=======
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
 
         public Builder dialogflowIntent(String dialogflowIntent) {
             this.dialogflowIntent = dialogflowIntent;
@@ -82,6 +88,7 @@ public class AnalysisTrace {
             return this;
         }
 
+<<<<<<< HEAD
         public Builder shoppingIntent(String shoppingIntent) {
             this.shoppingIntent = shoppingIntent;
             return this;
@@ -96,6 +103,11 @@ public class AnalysisTrace {
             return new AnalysisTrace(dialogflowIntent, dialogflowScore, similarityScore, 
                     safetyNetJudgement, ragFinalIntent, retrievedDocuments, finalEngine, 
                     shoppingIntent, shoppingResults);
+=======
+        public AnalysisTrace build() {
+            return new AnalysisTrace(dialogflowIntent, dialogflowScore, similarityScore, 
+                    safetyNetJudgement, ragFinalIntent, retrievedDocuments, finalEngine);
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
         }
     }
 }

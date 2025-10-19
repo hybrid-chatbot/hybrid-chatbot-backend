@@ -52,6 +52,7 @@ public class ChatOrchestratorService {
             // ✨ 2. Dialogflow의 1차 분석 결과를 노트에 기록합니다.
             traceBuilder.dialogflowIntent(originalIntentName).dialogflowScore(intentScore);
 
+<<<<<<< HEAD
             // ✨ 3. 쇼핑 의도 감지 시 상품 검색 처리
             if (isShoppingIntent(originalIntentName, request.getMessage())) {
                 log.info("쇼핑 의도 감지됨: {} - 상품 검색 시작", originalIntentName);
@@ -61,6 +62,10 @@ public class ChatOrchestratorService {
 
             if (intentScore >= DIALOGFLOW_SCORE_THRESHOLD) {
                 // ✨ 4. 2차 검증을 수행하고, 그 과정을 노트에 기록합니다.
+=======
+            if (intentScore >= DIALOGFLOW_SCORE_THRESHOLD) {
+                // ✨ 3. 2차 검증을 수행하고, 그 과정을 노트에 기록합니다.
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
                 if (isSemanticallySimilar(request.getMessage(), originalIntentName, traceBuilder)) {
                     log.info("Dialogflow 점수가 높고(score: {}), 의미 유사도 검증 통과. Dialogflow 응답 사용.", intentScore);
                     handleHighConfidenceIntent(request, originalIntentName, intentScore, dialogflowReply, traceBuilder.build());
@@ -153,6 +158,7 @@ public class ChatOrchestratorService {
                 reply, request.getLanguageCode(), analysisInfo, trace // trace 추가
         );
     }
+<<<<<<< HEAD
 
     /**
      * 쇼핑 의도인지 판단합니다.
@@ -291,4 +297,6 @@ public class ChatOrchestratorService {
                         .build())
                 .toList();
     }
+=======
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
 }
