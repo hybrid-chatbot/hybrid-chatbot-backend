@@ -1,4 +1,3 @@
-// src/main/java/com/example/demo/model/ChatMessage.java
 package com.example.demo.model;
 
 import com.example.demo.dto.AnalysisTrace; // ✨ AnalysisTrace import
@@ -22,7 +21,8 @@ public class ChatMessage {
     private String message;
     private String languageCode;
     private LocalDateTime timestamp;
-    private AnalysisInfo analysisInfo;
+    private AnalysisInfo analysisInfo; // ✨ analysisInfo 필드 추가
+    private ShoppingData shoppingData; // ✨ 쇼핑 데이터 필드 추가
     private AnalysisTrace analysisTrace; // ✨ '생각의 흔적'을 저장할 필드를 추가합니다.
 
     // --- ChatMessage 클래스 내부에 선언된 중첩 클래스 ---
@@ -75,4 +75,12 @@ public class ChatMessage {
         private String category3;
         private String category4;
     }
+<<<<<<< HEAD
+
+    public AnalysisInfo getDialogflowResponse() {
+        return this.analysisInfo;
+    }
 }
+=======
+}
+>>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244

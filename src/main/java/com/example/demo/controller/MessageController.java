@@ -66,8 +66,11 @@ public class MessageController {
         // 서비스에게 sessionId를 주고, DB에서 가장 최근 메시지를 찾아달라고 요청합니다.
         Optional<ChatMessage> latestMessage = chatMessageService.findLatestMessageBySessionId(sessionId);
 
-        // 메시지가 존재하고, 그 메시지에 Dialogflow의 응답이 있는지 확인합니다.
-        if (latestMessage.isPresent() && latestMessage.get().getDialogflowResponse() != null) {
+        // 메시지가 존재하고, 그 메시지에 분석 정보가 있는지 확인합니다.
+        // ✨ Dialogflow 응답 또는 쇼핑 응답 모두 처리 가능하도록 수정
+        if (latestMessage.isPresent() && 
+            (latestMessage.get().getDialogflowResponse() != null || 
+             latestMessage.get().getAnalysisInfo() != null)) {
             // 결과가 준비되었다면, 메시지 데이터와 함께 200 OK 상태를 보냅니다.
             return ResponseEntity.ok(latestMessage.get());
         } else {
