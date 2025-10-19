@@ -164,16 +164,11 @@ public class ChatOrchestratorService {
     private boolean isShoppingIntent(String intentName, String userMessage) {
         // 의도명 기반 판단
         String lowerIntent = intentName.toLowerCase();
-        boolean intentBased = lowerIntent.contains("shopping") || 
-                             lowerIntent.contains("product") || 
-                             lowerIntent.contains("search") ||
-                             lowerIntent.contains("buy") ||
-                             lowerIntent.contains("purchase");
+        boolean intentBased = lowerIntent.contains("shopping") || lowerIntent.contains("product") || lowerIntent.contains("search") ||lowerIntent.contains("buy") ||lowerIntent.contains("purchase");
         
         // 메시지 내용 기반 판단 (상품명, 브랜드명 등이 포함된 경우)
         String lowerMessage = userMessage.toLowerCase();
-        boolean messageBased = lowerMessage.matches(".*(나이키|아디다스|나이키|아디다스|신발|운동화|청바지|가방|옷|상품|제품|브랜드).*") ||
-                              lowerMessage.matches(".*(찾아|검색|보여|추천|어떤|좋은).*");
+        boolean messageBased = lowerMessage.matches(".*(나이키|아디다스|나이키|아디다스|신발|운동화|청바지|가방|옷|상품|제품|브랜드).*") || lowerMessage.matches(".*(찾아|검색|보여|추천|어떤|좋은).*");
         
         log.info("쇼핑 의도 판단 - 의도: {}, 메시지: {}, 의도기반: {}, 메시지기반: {}", 
                 intentName, userMessage, intentBased, messageBased);

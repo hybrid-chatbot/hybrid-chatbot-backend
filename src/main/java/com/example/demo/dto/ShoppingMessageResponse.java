@@ -193,3 +193,6 @@ public class ShoppingMessageResponse {
                 .build();
     }
 }
+
+
+
