@@ -42,7 +42,8 @@ public interface NaverShoppingItemRepository extends JpaRepository<NaverShopping
     List<String> findDistinctCategory1();
     
     // 추가 쿼리 메서드들
-    List<NaverShoppingItem> findByTitleContainingIgnoreCase(String title);
+    @Query("SELECT n FROM NaverShoppingItem n WHERE LOWER(n.title) LIKE LOWER(CONCAT('%', :title, '%'))")
+    List<NaverShoppingItem> findByTitleContainingIgnoreCase(@Param("title") String title);
     
     List<NaverShoppingItem> findBySearchQueryOrderByLastSearchedAtDesc(String searchQuery);
     

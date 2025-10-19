@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.example.demo.dto.AnalysisTrace; // ✨ AnalysisTrace import
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -10,18 +11,19 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Document(collection = "chat_messages") // MongoDB 컬렉션 이름 지정
+@Document(collection = "chat_messages")
 public class ChatMessage {
     @Id
     private String id;
     private String sessionId;
     private String userId;
     private String sender;
-    private String message; // 사용자 메시지
+    private String message;
     private String languageCode;
     private LocalDateTime timestamp;
     private AnalysisInfo analysisInfo; // ✨ analysisInfo 필드 추가
     private ShoppingData shoppingData; // ✨ 쇼핑 데이터 필드 추가
+    private AnalysisTrace analysisTrace; // ✨ '생각의 흔적'을 저장할 필드를 추가합니다.
 
     // --- ChatMessage 클래스 내부에 선언된 중첩 클래스 ---
     @Data
@@ -84,6 +86,6 @@ public class ChatMessage {
     }
 
     public AnalysisInfo getDialogflowResponse() {
-            return this.analysisInfo;
+        return this.analysisInfo;
     }
 }

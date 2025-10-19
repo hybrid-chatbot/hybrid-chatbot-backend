@@ -53,7 +53,7 @@ public class SimpleShoppingService {
      * @param query 사용자가 입력한 검색 키워드
      * @return 상품 검색 결과가 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProducts(String query) {
         log.info("상품 검색 시작: {}", query);
         
@@ -88,7 +88,7 @@ public class SimpleShoppingService {
      * @param brand 검색할 브랜드명
      * @return 해당 브랜드의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByBrand(String brand) {
         log.info("브랜드별 상품 검색 시작: {}", brand);
         
@@ -120,7 +120,7 @@ public class SimpleShoppingService {
      * @param category 검색할 카테고리명
      * @return 해당 카테고리의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByCategory(String category) {
         log.info("카테고리별 상품 검색 시작: {}", category);
         
@@ -153,7 +153,7 @@ public class SimpleShoppingService {
      * @param maxPrice 최대 가격 (원)
      * @return 해당 가격 범위의 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse searchProductsByPriceRange(Integer minPrice, Integer maxPrice) {
         log.info("가격 범위별 상품 검색 시작: {}원 ~ {}원", minPrice, maxPrice);
         
@@ -177,7 +177,7 @@ public class SimpleShoppingService {
      * 
      * @return 인기 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse getPopularProducts() {
         log.info("인기 상품 조회 시작");
         
@@ -201,7 +201,7 @@ public class SimpleShoppingService {
      * 
      * @return 최신 상품 목록이 포함된 응답 객체
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public ShoppingMessageResponse getRecentProducts() {
         log.info("최신 상품 조회 시작");
         
@@ -226,7 +226,7 @@ public class SimpleShoppingService {
      * @param id 조회할 상품의 ID
      * @return 상품 상세 정보 (없으면 null)
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public NaverShoppingItem getProductDetail(Long id) {
         return itemRepository.findById(id).orElse(null);
     }

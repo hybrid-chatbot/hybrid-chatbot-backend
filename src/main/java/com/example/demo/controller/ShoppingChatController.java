@@ -6,12 +6,11 @@ import com.example.demo.model.ChatMessage;
 import com.example.demo.service.ChatService;
 import com.example.demo.service.SimpleShoppingService;
 import com.example.navershopping.entity.NaverShoppingItem;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
 
 /**
  * 쇼핑 챗봇 컨트롤러
