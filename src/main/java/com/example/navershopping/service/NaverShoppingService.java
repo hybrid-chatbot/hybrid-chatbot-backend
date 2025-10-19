@@ -41,8 +41,7 @@ public class NaverShoppingService {
     }
 
     public NaverShoppingResponse searchProducts(String query, int display, int start) {
-        String url = String.format("https://openapi.naver.com/v1/search/shop.json?query=%s&display=%d&start=%d", 
-                                 query, display, start);
+        String url = String.format("https://openapi.naver.com/v1/search/shop.json?query=%s&display=%d&start=%d", query, display, start);
         
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Naver-Client-id", clientId);
