@@ -113,7 +113,7 @@ class IntentBasedSearchServiceTest {
         
         // 첫 번째 상품 검증
         ChatMessage.ProductInfo firstProduct = result.getProducts().get(0);
-        assertEquals("test-product-1", firstProduct.getId());
+        assertEquals("test-product-1", firstProduct.getProductId());
         assertEquals("아이폰 15 케이스", firstProduct.getTitle());
         assertEquals(15000, firstProduct.getLprice());
         assertEquals("Apple", firstProduct.getBrand());

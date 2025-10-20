@@ -58,4 +58,6 @@ public interface NaverShoppingItemRepository extends JpaRepository<NaverShopping
     
     @Query("SELECT n FROM NaverShoppingItem n WHERE n.brand = :brand AND n.id != :id")
     List<NaverShoppingItem> findByBrandAndIdNot(@Param("brand") String brand, @Param("id") Long id);
+    
+    void deleteByBrand(String brand);
 }

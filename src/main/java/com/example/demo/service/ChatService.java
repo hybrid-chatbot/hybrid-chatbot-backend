@@ -73,4 +73,21 @@ public class ChatService {
     public Optional<ChatMessage> findLatestMessageBySessionId(String sessionId) {
         return chatMessageRepository.findTopBySessionIdOrderByTimestampDesc(sessionId);
     }
+
+    /**
+     * ✨ (테스트용 메서드) 쇼핑 데이터와 함께 메시지를 저장합니다.
+     */
+    public void saveMessageWithShoppingData(String sessionId, String userId, String sender, String message, String languageCode, ChatMessage.AnalysisInfo analysisInfo, ChatMessage.ShoppingData shoppingData) {
+        ChatMessage chatMessage = ChatMessage.builder()
+                .sessionId(sessionId)
+                .userId(userId)
+                .sender(sender)
+                .message(message)
+                .languageCode(languageCode)
+                .timestamp(LocalDateTime.now())
+                .analysisInfo(analysisInfo)
+                .shoppingData(shoppingData)
+                .build();
+        chatMessageRepository.save(chatMessage);
+    }
 }

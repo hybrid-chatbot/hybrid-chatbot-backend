@@ -22,18 +22,16 @@ public class AnalysisTrace {
 
     // RAG의 최종 분석 결과 (해당 시)
     private String ragFinalIntent;
+    private Double ragConfidence; // RAG 모델의 신뢰도
     private List<String> retrievedDocuments; // 참고한 지식 문서
 
     // 최종적으로 선택된 엔진
     private String finalEngine;
 
-<<<<<<< HEAD
     // ✨ 쇼핑 관련 추적 정보
     private String shoppingIntent;
     private Integer shoppingResults;
 
-=======
->>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
     // Builder 패턴 구현
     public static Builder builder() {
         return new Builder();
@@ -45,13 +43,11 @@ public class AnalysisTrace {
         private Double similarityScore;
         private String safetyNetJudgement;
         private String ragFinalIntent;
+        private Double ragConfidence;
         private List<String> retrievedDocuments;
         private String finalEngine;
-<<<<<<< HEAD
         private String shoppingIntent;
         private Integer shoppingResults;
-=======
->>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
 
         public Builder dialogflowIntent(String dialogflowIntent) {
             this.dialogflowIntent = dialogflowIntent;
@@ -78,6 +74,11 @@ public class AnalysisTrace {
             return this;
         }
 
+        public Builder ragConfidence(Double ragConfidence) {
+            this.ragConfidence = ragConfidence;
+            return this;
+        }
+
         public Builder retrievedDocuments(List<String> retrievedDocuments) {
             this.retrievedDocuments = retrievedDocuments;
             return this;
@@ -88,7 +89,6 @@ public class AnalysisTrace {
             return this;
         }
 
-<<<<<<< HEAD
         public Builder shoppingIntent(String shoppingIntent) {
             this.shoppingIntent = shoppingIntent;
             return this;
@@ -101,13 +101,8 @@ public class AnalysisTrace {
 
         public AnalysisTrace build() {
             return new AnalysisTrace(dialogflowIntent, dialogflowScore, similarityScore, 
-                    safetyNetJudgement, ragFinalIntent, retrievedDocuments, finalEngine, 
+                    safetyNetJudgement, ragFinalIntent, ragConfidence, retrievedDocuments, finalEngine, 
                     shoppingIntent, shoppingResults);
-=======
-        public AnalysisTrace build() {
-            return new AnalysisTrace(dialogflowIntent, dialogflowScore, similarityScore, 
-                    safetyNetJudgement, ragFinalIntent, retrievedDocuments, finalEngine);
->>>>>>> f5217b1b3c80a64be7ec5f31fe30a5203797c244
         }
     }
 }
