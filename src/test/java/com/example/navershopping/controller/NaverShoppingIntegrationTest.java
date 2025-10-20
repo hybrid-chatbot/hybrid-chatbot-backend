@@ -19,10 +19,10 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(classes = com.example.demo.DemoApplication.class)
 @ActiveProfiles("test")
 @Transactional
-class NaverShoppingIntegrationTest {
+class NaverShoppingControllerIntegrationTest {
 
     @Autowired
     private NaverShoppingService naverShoppingService;

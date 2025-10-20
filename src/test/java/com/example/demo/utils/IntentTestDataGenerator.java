@@ -234,8 +234,8 @@ public class IntentTestDataGenerator {
                         .category2(item.getCategory2())
                         .category3(item.getCategory3())
                         .category4(item.getCategory4())
-                        .searchCount(item.getSearchCount())
-                        .lastSearchedAt(item.getLastSearchedAt().toString())
+                        .searchCount(item.getSearchCount() != null ? item.getSearchCount() : 0)
+                        .lastSearchedAt(item.getLastSearchedAt() != null ? item.getLastSearchedAt().toString() : LocalDateTime.now().toString())
                         .build())
                 .toList();
     }

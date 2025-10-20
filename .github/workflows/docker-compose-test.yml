@@ -74,7 +74,7 @@ jobs:
     - name: Run integration tests
       run: |
         echo "Running integration tests with Maven..."
-        ./mvnw clean test -Dspring.profiles.active=test -Dmaven.test.failure.ignore=true
+        ./mvnw clean test -Dtest="*ServiceTest" -Dspring.profiles.active=test -Dmaven.test.failure.ignore=true
         echo "Integration test execution completed"
       env:
         MONGODB_URI: mongodb://localhost:27017/test

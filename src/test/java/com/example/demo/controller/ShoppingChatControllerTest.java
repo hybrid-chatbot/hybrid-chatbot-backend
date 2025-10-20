@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - 최신 상품 조회 API
  * - 상품 상세 정보 조회 API
  */
-@WebMvcTest(ShoppingChatController.class)
+@WebMvcTest(controllers = ShoppingChatController.class)
 class ShoppingChatControllerTest {
 
     @Autowired
@@ -47,6 +47,19 @@ class ShoppingChatControllerTest {
 
     @MockBean
     private ChatService chatService;
+
+    // 모듈화된 서비스들 모킹
+    @MockBean
+    private com.example.demo.service.RagAnalysisService ragAnalysisService;
+    
+    @MockBean
+    private com.example.demo.service.SearchExecutorService searchExecutorService;
+    
+    @MockBean
+    private com.example.demo.service.ResponseBuilderService responseBuilderService;
+    
+    @MockBean
+    private com.example.demo.service.KeywordAnalyzerService keywordAnalyzerService;
 
     @Autowired
     private ObjectMapper objectMapper;

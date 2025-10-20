@@ -66,6 +66,7 @@ public class ChatMessage {
     @AllArgsConstructor
     public static class ProductInfo {
         private Long id;
+        private String productId;
         private String title;
         private String image;
         private String link;
@@ -75,6 +76,8 @@ public class ChatMessage {
         private String brand;
         private String category1;
         private String category2;
+        private String category3;
+        private String category4;
         private String productType;
         private String maker;
         private Integer searchCount;

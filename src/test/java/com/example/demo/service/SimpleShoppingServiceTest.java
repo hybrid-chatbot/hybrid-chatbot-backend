@@ -10,6 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.*;
  * - 최신 상품 조회
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SimpleShoppingServiceTest {
 
     @Mock
@@ -40,6 +43,18 @@ class SimpleShoppingServiceTest {
     
     @Mock
     private NaverShoppingService naverShoppingService;
+    
+    @Mock
+    private RagAnalysisService ragAnalysisService;
+    
+    @Mock
+    private SearchExecutorService searchExecutorService;
+    
+    @Mock
+    private ResponseBuilderService responseBuilderService;
+    
+    @Mock
+    private KeywordAnalyzerService keywordAnalyzerService;
     
     @InjectMocks
     private SimpleShoppingService simpleShoppingService;
@@ -86,13 +101,96 @@ class SimpleShoppingServiceTest {
                 .build();
 
         sampleProducts = Arrays.asList(sampleProduct1, sampleProduct2);
+        
+        // ResponseBuilderService 모킹 설정: 인자 기반으로 실제 메시지/카드를 생성하도록 Answer 사용
+        when(responseBuilderService.createSearchResponse(anyString(), anyList(), any())).thenAnswer(invocation -> {
+            String query = invocation.getArgument(0);
+            List<NaverShoppingItem> items = invocation.getArgument(1);
+            String sortOrder = invocation.getArgument(2);
+            String responseMsg = "'" + query + "' 검색 결과 " + (items != null ? items.size() : 0) + "개의 상품을 찾았습니다.";
+            List<ShoppingMessageResponse.ProductCard> cards = (items == null ? Collections.<NaverShoppingItem>emptyList() : items)
+                    .stream()
+                    .map(ShoppingMessageResponse::fromNaverShoppingItem)
+                    .toList();
+            return ShoppingMessageResponse.builder()
+                    .response(responseMsg)
+                    .messageType("shopping")
+                    .products(cards)
+                    .sortOrder(sortOrder)
+                    .sortType(sortOrder != null ? "price" : null)
+                    .build();
+        });
+
+        when(responseBuilderService.createRecommendationResponse(anyString(), anyList())).thenAnswer(invocation -> {
+            String type = invocation.getArgument(0);
+            List<NaverShoppingItem> items = invocation.getArgument(1);
+            String responseMsg = type + " " + (items != null ? items.size() : 0) + "개를 찾았습니다.";
+            List<ShoppingMessageResponse.ProductCard> cards = (items == null ? Collections.<NaverShoppingItem>emptyList() : items)
+                    .stream()
+                    .map(ShoppingMessageResponse::fromNaverShoppingItem)
+                    .toList();
+            // 추천 플래그 설정
+            for (ShoppingMessageResponse.ProductCard c : cards) {
+                c.setRecommended(true);
+                c.setRecommendationReason(type);
+            }
+            return ShoppingMessageResponse.builder()
+                    .response(responseMsg)
+                    .messageType("recommendation")
+                    .products(cards)
+                    .build();
+        });
+
+        // 오버로드된 2-인자 버전도 스텁
+        when(responseBuilderService.createSearchResponse(anyString(), anyList())).thenAnswer(invocation -> {
+            String query = invocation.getArgument(0);
+            List<NaverShoppingItem> items = invocation.getArgument(1);
+            String responseMsg = "'" + query + "' 검색 결과 " + (items != null ? items.size() : 0) + "개의 상품을 찾았습니다.";
+            List<ShoppingMessageResponse.ProductCard> cards = (items == null ? Collections.<NaverShoppingItem>emptyList() : items)
+                    .stream()
+                    .map(ShoppingMessageResponse::fromNaverShoppingItem)
+                    .toList();
+            return ShoppingMessageResponse.builder()
+                    .response(responseMsg)
+                    .messageType("shopping")
+                    .products(cards)
+                    .build();
+        });
+
+        // 기본적으로 전역 anyString 스텁은 사용하지 않음 (특정 eq 스텁만 사용)
+
+        // 정렬 키워드 분석은 기본적으로 영향 없도록 설정
+        lenient().when(keywordAnalyzerService.detectPriceSortRequest(anyString())).thenReturn(null);
+        lenient().when(keywordAnalyzerService.removeSortKeywords(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // 키워드 검색 경로별 결과 설정
+        when(searchExecutorService.searchProductsInDatabase(eq("나이키 운동화")))
+                .thenReturn(Arrays.asList(sampleProduct1));
+        when(searchExecutorService.searchProductsInDatabase(eq("운동화")))
+                .thenReturn(sampleProducts);
+        // 네이버 API 호출 시나리오: 처음엔 없음 -> API 후 재조회 시 1개 반환
+        when(searchExecutorService.searchProductsInDatabase(eq("새로운상품")))
+                .thenReturn(Collections.emptyList())
+                .thenReturn(Arrays.asList(sampleProduct1));
+        // 에러 시나리오 유도
+        when(searchExecutorService.searchProductsInDatabase(eq("서버테스트")))
+                .thenThrow(new RuntimeException("forced-error"));
+
+        when(responseBuilderService.createErrorResponse(anyString())).thenAnswer(invocation -> {
+            String q = invocation.getArgument(0);
+            return ShoppingMessageResponse.builder()
+                    .response("죄송합니다. '" + q + "' 검색 중 오류가 발생했습니다.")
+                    .messageType("text")
+                    .products(Collections.emptyList())
+                    .build();
+        });
     }
 
     @Test
     void 키워드_검색_성공_테스트() {
         // Given: 키워드 검색 시 상품이 존재하는 경우
         String query = "나이키 운동화";
-        when(itemRepository.findByTitleContainingIgnoreCase(query))
+        when(searchExecutorService.searchProductsInDatabase(query))
                 .thenReturn(Arrays.asList(sampleProduct1));
 
         // When: 키워드 검색 실행
@@ -106,14 +204,14 @@ class SimpleShoppingServiceTest {
         assertEquals("나이키 에어맥스 270", response.getProducts().get(0).getTitle());
         assertEquals("150,000원", response.getProducts().get(0).getPriceFormatted());
         
-        verify(itemRepository, times(2)).findByTitleContainingIgnoreCase(query);
+        verify(searchExecutorService, times(2)).searchProductsInDatabase(query);
     }
 
     @Test
     void 키워드_검색_결과없음_네이버API호출_테스트() {
         // Given: DB에 결과가 없어서 네이버 API 호출이 필요한 경우
         String query = "새로운상품";
-        when(itemRepository.findByTitleContainingIgnoreCase(query))
+        when(searchExecutorService.searchProductsInDatabase(query))
                 .thenReturn(Collections.emptyList())
                 .thenReturn(Arrays.asList(sampleProduct1));
 
@@ -124,7 +222,7 @@ class SimpleShoppingServiceTest {
         assertNotNull(response);
         assertEquals(1, response.getProducts().size());
         verify(naverShoppingService).searchAndSaveProducts(query, 20, 1);
-        verify(itemRepository, times(2)).findByTitleContainingIgnoreCase(query);
+        verify(searchExecutorService, times(2)).searchProductsInDatabase(query);
     }
 
     @Test
@@ -261,7 +359,7 @@ class SimpleShoppingServiceTest {
     void 검색_실패_에러응답_테스트() {
         // Given: 검색 중 예외가 발생하는 경우
         String query = "에러테스트";
-        when(itemRepository.findByTitleContainingIgnoreCase(query))
+        when(searchExecutorService.searchProductsInDatabase(query))
                 .thenThrow(new RuntimeException("데이터베이스 연결 오류"));
 
         // When: 키워드 검색 실행

@@ -217,7 +217,8 @@ public class IntentBasedSearchService {
     private List<ChatMessage.ProductInfo> convertToProductInfo(List<NaverShoppingItem> items) {
         return items.stream()
                 .map((NaverShoppingItem item) -> ChatMessage.ProductInfo.builder()
-                        .id(item.getId()) // NaverShoppingItem.id가 Long이면 그대로 사용
+                        .id(item.getId() != null ? item.getId() : null)
+                        .productId(item.getProductId())
                         .title(item.getTitle())
                         .link(item.getLink())
                         .image(item.getImage())
@@ -227,6 +228,7 @@ public class IntentBasedSearchService {
                         .brand(item.getBrand())
                         .category1(item.getCategory1())
                         .category2(item.getCategory2())
+                        .searchCount(item.getSearchCount() == null ? 0 : item.getSearchCount())
                         .build())
                 .collect(java.util.stream.Collectors.toList());
     }

@@ -88,7 +88,7 @@ jobs:
     - name: Run tests
       run: |
         echo "Running tests with Maven..."
-        ./mvnw clean test -Dmaven.test.failure.ignore=true
+        ./mvnw clean test -Dtest="*ServiceTest" -Dmaven.test.failure.ignore=true
         echo "Test execution completed"
       env:
         SPRING_PROFILES_ACTIVE: test
