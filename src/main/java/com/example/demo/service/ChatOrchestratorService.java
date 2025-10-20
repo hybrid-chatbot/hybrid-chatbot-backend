@@ -5,7 +5,6 @@ package com.example.demo.service;
 import com.example.demo.dto.AiServerResponse;
 import com.example.demo.dto.AnalysisTrace; 
 import com.example.demo.dto.MessageRequest;
-import com.example.demo.dto.ShoppingMessageResponse;
 import com.example.demo.model.ChatMessage;
 import com.example.demo.utils.CosineSimilarityCalculator;
 import com.google.cloud.dialogflow.v2.DetectIntentResponse;
@@ -32,7 +31,6 @@ public class ChatOrchestratorService {
     private final ChatService chatService;
     private final EmbeddingService embeddingService; // 
     private final IntentRepresentativeService intentRepresentativeService; //  문장 관리자 전문가
-    private final SimpleShoppingService simpleShoppingService; // ✨ 쇼핑 서비스 추가
 
     public void processMessage(MessageRequest request) {
         // ✨ 1. '생각의 흔적'을 기록할 노트를 새로 만듭니다.
@@ -52,12 +50,6 @@ public class ChatOrchestratorService {
             // ✨ 2. Dialogflow의 1차 분석 결과를 노트에 기록합니다.
             traceBuilder.dialogflowIntent(originalIntentName).dialogflowScore(intentScore);
 
-            // ✨ 3. 쇼핑 의도 감지 시 상품 검색 처리
-            if (isShoppingIntent(originalIntentName, request.getMessage())) {
-                log.info("쇼핑 의도 감지됨: {} - 상품 검색 시작", originalIntentName);
-                handleShoppingIntent(request, originalIntentName, intentScore, traceBuilder);
-                return; // 쇼핑 처리 완료 후 종료
-            }
 
             if (intentScore >= DIALOGFLOW_SCORE_THRESHOLD) {
                 // ✨ 4. 2차 검증을 수행하고, 그 과정을 노트에 기록합니다.
@@ -154,136 +146,5 @@ public class ChatOrchestratorService {
         );
     }
 
-    /**
-     * 쇼핑 의도인지 판단합니다.
-     * 
-     * @param intentName Dialogflow에서 감지된 의도명
-     * @param userMessage 사용자 메시지
-     * @return 쇼핑 의도 여부
-     */
-    private boolean isShoppingIntent(String intentName, String userMessage) {
-        // 의도명 기반 판단
-        String lowerIntent = intentName.toLowerCase();
-        boolean intentBased = lowerIntent.contains("shopping") || lowerIntent.contains("product") || lowerIntent.contains("search") ||lowerIntent.contains("buy") ||lowerIntent.contains("purchase");
-        
-        // 메시지 내용 기반 판단 (상품명, 브랜드명 등이 포함된 경우)
-        String lowerMessage = userMessage.toLowerCase();
-        boolean messageBased = lowerMessage.matches(".*(나이키|아디다스|나이키|아디다스|신발|운동화|청바지|가방|옷|상품|제품|브랜드).*") || lowerMessage.matches(".*(찾아|검색|보여|추천|어떤|좋은).*");
-        
-        log.info("쇼핑 의도 판단 - 의도: {}, 메시지: {}, 의도기반: {}, 메시지기반: {}", 
-                intentName, userMessage, intentBased, messageBased);
-        
-        return intentBased || messageBased;
-    }
 
-    /**
-     * 쇼핑 의도 처리 - 상품 검색 및 결과 저장
-     * 
-     * @param request 사용자 요청
-     * @param intentName 의도명
-     * @param intentScore 의도 점수
-     * @param traceBuilder 분석 추적 빌더
-     */
-    private void handleShoppingIntent(MessageRequest request, String intentName, float intentScore, AnalysisTrace.Builder traceBuilder) {
-        try {
-            log.info("쇼핑 의도 처리 시작 - 메시지: {}", request.getMessage());
-            
-            // ✨ 1. SimpleShoppingService를 통해 상품 검색
-            ShoppingMessageResponse shoppingResponse = simpleShoppingService.searchProducts(request.getMessage());
-            
-            // ✨ 2. 쇼핑 분석 정보 생성
-            ChatMessage.AnalysisInfo analysisInfo = ChatMessage.AnalysisInfo.builder()
-                    .engine("shopping-service")
-                    .intentName(intentName)
-                    .originalIntentName(intentName)
-                    .originalIntentScore(intentScore)
-                    .build();
-            
-            // ✨ 3. 쇼핑 데이터 생성
-            ChatMessage.ShoppingData shoppingData = ChatMessage.ShoppingData.builder()
-                    .intentType("product_search")
-                    .originalQuery(request.getMessage())
-                    .totalResults(shoppingResponse.getProducts() != null ? shoppingResponse.getProducts().size() : 0)
-                    .searchTime(java.time.LocalDateTime.now().toString())
-                    .confidence("high")
-                    .products(convertToProductInfo(shoppingResponse))
-                    .build();
-            
-            // ✨ 4. 분석 추적 정보 업데이트
-            traceBuilder.shoppingIntent(intentName)
-                       .shoppingResults(shoppingResponse.getProducts() != null ? shoppingResponse.getProducts().size() : 0)
-                       .finalEngine("shopping-service");
-            
-            // ✨ 5. 결과를 DB에 저장
-            chatService.saveMessage(
-                    request.getSessionId(), 
-                    request.getUserId(), 
-                    "bot", 
-                    shoppingResponse.getResponse(), 
-                    request.getLanguageCode(), 
-                    analysisInfo, 
-                    traceBuilder.build(),
-                    shoppingData // 쇼핑 데이터 추가
-            );
-            
-            log.info("쇼핑 의도 처리 완료 - 검색된 상품 수: {}", 
-                    shoppingResponse.getProducts() != null ? shoppingResponse.getProducts().size() : 0);
-            
-        } catch (Exception e) {
-            log.error("쇼핑 의도 처리 중 오류 발생: {}", request.getMessage(), e);
-            
-            // 오류 발생 시 기본 응답 저장
-            ChatMessage.AnalysisInfo errorAnalysisInfo = ChatMessage.AnalysisInfo.builder()
-                    .engine("shopping-service-error")
-                    .intentName(intentName)
-                    .originalIntentName(intentName)
-                    .originalIntentScore(intentScore)
-                    .build();
-            
-            chatService.saveMessage(
-                    request.getSessionId(), 
-                    request.getUserId(), 
-                    "bot", 
-                    "죄송합니다. 상품 검색 중 오류가 발생했습니다. 다시 시도해주세요.", 
-                    request.getLanguageCode(), 
-                    errorAnalysisInfo, 
-                    traceBuilder.build()
-            );
-        }
-    }
-
-    /**
-     * ShoppingMessageResponse를 ChatMessage.ProductInfo 리스트로 변환
-     * 
-     * @param shoppingResponse 쇼핑 응답
-     * @return ProductInfo 리스트
-     */
-    private List<ChatMessage.ProductInfo> convertToProductInfo(ShoppingMessageResponse shoppingResponse) {
-        if (shoppingResponse.getProducts() == null) {
-            return List.of();
-        }
-        
-        return shoppingResponse.getProducts().stream()
-                .map(product -> ChatMessage.ProductInfo.builder()
-                        .id(product.getId())
-                        .title(product.getTitle())
-                        .image(product.getImage())
-                        .link(product.getLink())
-                        .lprice(product.getLprice())
-                        .hprice(product.getHprice())
-                        .mallName(product.getMallName())
-                        .brand(product.getBrand())
-                        .category1(product.getCategory1())
-                        .category2(product.getCategory2())
-                        .productType(product.getProductType())
-                        .maker(product.getMaker())
-                        .searchCount(product.getSearchCount())
-                        .lastSearchedAt(product.getLastSearchedAt())
-                        .priceFormatted(product.getPriceFormatted())
-                        .discountRate(product.getDiscountRate())
-                        .isRecommended(product.isRecommended())
-                        .recommendationReason(product.getRecommendationReason())
-                        .build())
-                .toList();
-    }
 }

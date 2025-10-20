@@ -22,6 +22,7 @@ public class AnalysisTrace {
 
     // RAG의 최종 분석 결과 (해당 시)
     private String ragFinalIntent;
+    private Double ragConfidence; // RAG 모델의 신뢰도
     private List<String> retrievedDocuments; // 참고한 지식 문서
 
     // 최종적으로 선택된 엔진
@@ -42,6 +43,7 @@ public class AnalysisTrace {
         private Double similarityScore;
         private String safetyNetJudgement;
         private String ragFinalIntent;
+        private Double ragConfidence;
         private List<String> retrievedDocuments;
         private String finalEngine;
         private String shoppingIntent;
@@ -72,6 +74,11 @@ public class AnalysisTrace {
             return this;
         }
 
+        public Builder ragConfidence(Double ragConfidence) {
+            this.ragConfidence = ragConfidence;
+            return this;
+        }
+
         public Builder retrievedDocuments(List<String> retrievedDocuments) {
             this.retrievedDocuments = retrievedDocuments;
             return this;
@@ -94,7 +101,7 @@ public class AnalysisTrace {
 
         public AnalysisTrace build() {
             return new AnalysisTrace(dialogflowIntent, dialogflowScore, similarityScore, 
-                    safetyNetJudgement, ragFinalIntent, retrievedDocuments, finalEngine, 
+                    safetyNetJudgement, ragFinalIntent, ragConfidence, retrievedDocuments, finalEngine, 
                     shoppingIntent, shoppingResults);
         }
     }

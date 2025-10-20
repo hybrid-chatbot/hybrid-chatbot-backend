@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.test;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -29,8 +29,8 @@ public class ProductVisualizationConsole {
 
     // 네이버 쇼핑 API 설정
     private static final String NAVER_SHOPPING_API_URL = "https://openapi.naver.com/v1/search/shop.json";
-    private static final String CLIENT_ID = "MX1_wyfeo9eBuPfVTCSA";  // 실제 클라이언트 ID로 변경 필요
-    private static final String CLIENT_SECRET = "MdiPTZAHE0";  // 실제 클라이언트 시크릿으로 변경 필요
+    private static final String CLIENT_ID = System.getenv("NAVER_CLIENT_ID");
+    private static final String CLIENT_SECRET = System.getenv("NAVER_CLIENT_SECRET");
     
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -38,6 +38,18 @@ public class ProductVisualizationConsole {
         // 콘솔 인코딩 설정
         System.setProperty("file.encoding", "UTF-8");
         System.setProperty("console.encoding", "UTF-8");
+        
+        // 환경변수 검증
+        if (CLIENT_ID == null || CLIENT_SECRET == null) {
+            System.err.println("❌ 오류: 네이버 API 자격증명이 설정되지 않았습니다.");
+            System.err.println("   다음 환경변수를 설정해주세요:");
+            System.err.println("   - NAVER_CLIENT_ID");
+            System.err.println("   - NAVER_CLIENT_SECRET");
+            System.err.println("\n   PowerShell에서 설정하는 방법:");
+            System.err.println("   $env:NAVER_CLIENT_ID=\"your_client_id\"");
+            System.err.println("   $env:NAVER_CLIENT_SECRET=\"your_client_secret\"");
+            System.exit(1);
+        }
         
         System.out.println("\n" + "=".repeat(80));
         System.out.println("상품 정보 시각화 콘솔");
@@ -79,7 +91,7 @@ public class ProductVisualizationConsole {
         
         try {
             // 네이버 쇼핑 API 호출
-            NaverShoppingResponse response = callNaverShoppingAPI(query, 10, 1);
+            NaverShoppingResponse response = callNaverShoppingAPIWithRetry(query, 10, 1, 3, 400);
             
             if (response == null || response.getItems() == null || response.getItems().isEmpty()) {
                 System.out.println("❌ 검색 결과가 없습니다.");
@@ -176,13 +188,12 @@ public class ProductVisualizationConsole {
         System.out.printf("│ 상품명: %-65s │\n", truncateString(title, 65));
         
         // 가격 정보
-        if (item.getLprice() != null && item.getHprice() != null) {
-            if (item.getLprice().equals(item.getHprice())) {
-                System.out.printf("│ 가격: %-65s │\n", formatPrice(item.getLprice()));
-            } else {
-                System.out.printf("│ 가격: %-65s │\n", 
-                    formatPrice(item.getLprice()) + " ~ " + formatPrice(item.getHprice()));
+        if (item.getLprice() != null) {
+            String priceInfo = formatPrice(item.getLprice());
+            if (item.getHprice() != null && !item.getLprice().equals(item.getHprice())) {
+                priceInfo += " ~ " + formatPrice(item.getHprice());
             }
+            System.out.printf("│ 가격: %-65s │\n", priceInfo);
         }
         
         // 쇼핑몰 정보
@@ -267,6 +278,10 @@ public class ProductVisualizationConsole {
             connection.setRequestMethod("GET");
             connection.setRequestProperty("X-Naver-Client-Id", CLIENT_ID);
             connection.setRequestProperty("X-Naver-Client-Secret", CLIENT_SECRET);
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("Accept-Charset", "UTF-8");
+            connection.setRequestProperty("Accept-Language", "ko-KR,ko;q=0.9,en;q=0.8");
             
             int responseCode = connection.getResponseCode();
             if (responseCode == 200) {
@@ -287,6 +302,19 @@ public class ProductVisualizationConsole {
             System.err.println("API 호출 중 오류: " + e.getMessage());
             return null;
         }
+    }
+
+    private static NaverShoppingResponse callNaverShoppingAPIWithRetry(String query, int display, int start, int maxAttempts, int backoffMs) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            NaverShoppingResponse res = callNaverShoppingAPI(query, display, start);
+            if (res != null && res.getItems() != null && !res.getItems().isEmpty()) {
+                return res;
+            }
+            if (attempt < maxAttempts) {
+                try { Thread.sleep((long) backoffMs * attempt); } catch (InterruptedException ignored) {}
+            }
+        }
+        return callNaverShoppingAPI(query, display, start);
     }
 
     /**

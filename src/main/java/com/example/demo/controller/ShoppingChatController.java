@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 쇼핑 챗봇 컨트롤러
  * 
@@ -91,7 +93,7 @@ public class ShoppingChatController {
     }
 
     /**
-     * 상품 검색 API
+     * 상품 검색 API (GET 방식)
      * 
      * 키워드로 상품을 검색합니다.
      * 
@@ -100,7 +102,7 @@ public class ShoppingChatController {
      */
     @GetMapping("/search")
     public ResponseEntity<ShoppingMessageResponse> searchProducts(@RequestParam String query) {
-        log.info("상품 검색 API 요청 - 쿼리: {}", query);
+        log.info("상품 검색 API 요청 (GET) - 쿼리: {}", query);
 
         try {
             // 쇼핑 서비스를 통해 상품 검색
@@ -108,7 +110,57 @@ public class ShoppingChatController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("상품 검색 API 실패 - 쿼리: {}", query, e);
+            log.error("상품 검색 API 실패 (GET) - 쿼리: {}", query, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 상품 검색 API (POST 방식) - 프론트엔드 호환용
+     * 
+     * 프론트엔드에서 POST 방식으로 상품을 검색합니다.
+     * 기존 상품검색 흐름을 그대로 유지하면서 POST 방식으로 처리합니다.
+     * 
+     * @param request 상품 검색 요청 (세션ID, 사용자ID, 메시지, 언어코드 포함)
+     * @return 검색된 상품 목록이 포함된 응답
+     */
+    @PostMapping("/search")
+    public ResponseEntity<ShoppingMessageResponse> searchProductsPost(@Valid @RequestBody MessageRequest request) {
+        log.info("상품 검색 API 요청 (POST) - 메시지: {}, 세션ID: {}", request.getMessage(), request.getSessionId());
+
+        try {
+            // 1단계: 사용자 메시지를 데이터베이스에 저장
+            chatService.saveMessage(
+                    request.getSessionId(), // 세션 ID
+                    request.getUserId(), // 사용자 ID
+                    "user", // 발신자 (사용자)
+                    request.getMessage(), // 메시지 내용
+                    request.getLanguageCode(), // 언어 코드
+                    null // 분석 정보 (사용자 메시지는 null)
+            );
+
+            // 2단계: 의도분석 기반 상품검색 사용
+            ShoppingMessageResponse response = simpleShoppingService.searchProductsWithIntent(
+                    request.getMessage(), 
+                    request.getSessionId(), 
+                    request.getLanguageCode()
+            );
+
+            // 3단계: 봇의 응답을 데이터베이스에 저장
+            chatService.saveMessage(
+                    request.getSessionId(), // 세션 ID
+                    request.getUserId(), // 사용자 ID
+                    "bot", // 발신자 (봇)
+                    response.getResponse(), // 봇 응답 메시지
+                    request.getLanguageCode(), // 언어 코드
+                    createAnalysisInfo(response) // 분석 정보 생성
+            );
+
+            // 4단계: 검색 결과 반환
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("상품 검색 API 실패 (POST) - 메시지: {}", request.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -258,6 +310,48 @@ public class ShoppingChatController {
         }
     }
 
+
+    /**
+     * 더미 데이터 생성 API
+     * 
+     * 테스트를 위해 나이키 운동화 더미 데이터를 생성합니다.
+     * 
+     * @return 생성된 더미 데이터 개수
+     */
+    @PostMapping("/create-dummy-data")
+    public ResponseEntity<String> createDummyData() {
+        log.info("더미 데이터 생성 API 요청");
+        
+        try {
+            int count = simpleShoppingService.createDummyNikeShoes();
+            return ResponseEntity.ok("더미 데이터 " + count + "개가 생성되었습니다.");
+            
+        } catch (Exception e) {
+            log.error("더미 데이터 생성 실패", e);
+            return ResponseEntity.internalServerError().body("더미 데이터 생성 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 데이터베이스 상품 조회 API
+     * 
+     * 데이터베이스에 저장된 상품들을 조회합니다.
+     * 
+     * @return 저장된 상품 목록
+     */
+    @GetMapping("/debug/products")
+    public ResponseEntity<List<NaverShoppingItem>> getProducts() {
+        log.info("데이터베이스 상품 조회 API 요청");
+        
+        try {
+            List<NaverShoppingItem> products = simpleShoppingService.getAllProducts();
+            return ResponseEntity.ok(products);
+            
+        } catch (Exception e) {
+            log.error("상품 조회 실패", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
     /**
      * 분석 정보 생성
