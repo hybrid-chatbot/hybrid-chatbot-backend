@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: demo
+  profiles:
+    active: test
+
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/test
+      auto-index-creation: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+openai:
+  model: gpt-4o
+  api-key: ${OPENAI_API_KEY:test-key}
+
+dialogflow:
+  project-id: hybrid-chatbot-test
+  credentials-path: ${DIALOGFLOW_CREDENTIALS_PATH:}
+
+logging:
+  level:
+    com.example.demo: DEBUG
+    org.springframework.kafka: DEBUG
+    org.springframework.data.mongodb: DEBUG
