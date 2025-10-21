@@ -26,8 +26,8 @@ public class PriceSortTestConsole implements CommandLineRunner {
 
     @Autowired
     private SimpleShoppingService simpleShoppingService;
-    private static final String CLIENT_ID = System.getenv("NAVER_CLIENT_ID");
-    private static final String CLIENT_SECRET = System.getenv("NAVER_CLIENT_SECRET");
+    // private static final String CLIENT_ID = System.getenv("NAVER_CLIENT_ID");
+    // private static final String CLIENT_SECRET = System.getenv("NAVER_CLIENT_SECRET");
     public static void main(String[] args) {
         // 환경변수 설정 (Naver API 키)
         System.setProperty("file.encoding", "UTF-8");
