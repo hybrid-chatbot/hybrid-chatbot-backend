@@ -95,7 +95,7 @@
 		<dependency>
 			<groupId>com.google.cloud</groupId>
 			<artifactId>google-cloud-dialogflow</artifactId>
-			<version>4.69.0</version> <!-- Use the latest version available -->
+			<version>4.83.0</version> <!-- Use the latest version available -->
 		</dependency>
 		<dependency>
     		<groupId>org.springframework.kafka</groupId>
