@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.AiServerResponse;
 import com.example.navershopping.entity.NaverShoppingItem;
 import com.example.navershopping.repository.NaverShoppingItemRepository;
 import com.example.navershopping.service.NaverShoppingService;
@@ -22,8 +23,62 @@ import java.util.stream.Collectors;
 public class SearchExecutorService {
 
     private final NaverShoppingItemRepository itemRepository;
+    private final DynamicSqlQueryService dynamicSqlQueryService;
     private final NaverShoppingService naverShoppingService;
     private final KeywordAnalyzerService keywordAnalyzerService;
+
+    /**
+     * RAG 의도분석 기반 동적 SQL 검색
+     * 
+     * @param query 사용자 검색어
+     * @param ragResponse RAG 분석 결과
+     * @return 검색된 상품 목록
+     */
+    public List<NaverShoppingItem> executeDynamicSearch(String query, AiServerResponse ragResponse) {
+        log.info("동적 SQL 기반 상품 검색 시작 - 검색어: {}, 의도: {}", 
+                query, ragResponse != null ? ragResponse.getFinal_intent() : "unknown");
+        
+        try {
+            // 1. RAG 분석 결과를 기반으로 동적 SQL 쿼리 생성
+            DynamicSqlQueryService.DynamicQueryResult queryResult = 
+                dynamicSqlQueryService.generateDynamicQuery(query, ragResponse);
+            
+            log.info("생성된 SQL 쿼리: {}", queryResult.getSql());
+            log.info("쿼리 파라미터: {}", queryResult.getParameters());
+            
+            // 2. 동적 SQL 쿼리 실행
+            List<NaverShoppingItem> products = executeDynamicQuery(queryResult);
+            
+            log.info("동적 SQL 검색 완료 - {}개 상품 발견", products.size());
+            
+            // 3. 결과가 부족하면 네이버 API 호출
+            if (products.size() < 5) {
+                log.info("동적 SQL 결과 부족 ({}개) - 네이버 API 호출", products.size());
+                naverShoppingService.searchAndSaveProducts(query, 20, 1);
+                products = executeDynamicQuery(queryResult); // 재검색
+            }
+            
+            return products;
+            
+        } catch (Exception e) {
+            log.error("동적 SQL 검색 중 오류 발생: {}", query, e);
+            // 폴백: 기존 방식으로 검색
+            return searchProductsInDatabase(query);
+        }
+    }
+    
+    /**
+     * 동적 SQL 쿼리 실행
+     */
+    private List<NaverShoppingItem> executeDynamicQuery(DynamicSqlQueryService.DynamicQueryResult queryResult) {
+        try {
+            // DynamicSqlQueryService를 통해 네이티브 SQL 쿼리 실행
+            return dynamicSqlQueryService.executeNativeQuery(queryResult.getSql());
+        } catch (Exception e) {
+            log.error("동적 SQL 쿼리 실행 실패: {}", queryResult.getSql(), e);
+            return new ArrayList<>();
+        }
+    }
 
     /**
      * 추천 상품 검색 (가격대와 브랜드 기반)

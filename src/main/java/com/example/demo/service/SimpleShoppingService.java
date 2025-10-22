@@ -87,13 +87,51 @@ public class SimpleShoppingService {
                 return searchProducts(query);
             }
             
-            // 최종 의도로 상품 검색 실행
+            // 최종 의도로 동적 SQL 기반 상품 검색 실행
             log.info("최종 의도분석 결과 - 의도: {}, 신뢰도: {}, 엔진: {}", finalIntentName, finalIntentScore, finalEngine);
-            return executeSearchByIntentWithTrace(query, finalIntentName, finalIntentScore, finalEngine, traceBuilder.build());
+            return executeDynamicSearchWithTrace(query, ragResponse, traceBuilder.build());
             
         } catch (Exception e) {
             log.error("RAG 모델 직접 의도분석 기반 상품 검색 중 오류 발생: {}", query, e);
             return searchProducts(query);
+        }
+    }
+
+    /**
+     * 동적 SQL 기반 상품 검색 실행
+     * 
+     * @param query 사용자 검색어
+     * @param ragResponse RAG 분석 결과
+     * @param analysisTrace 분석 추적 정보
+     * @return 검색 결과 응답
+     */
+    private ShoppingMessageResponse executeDynamicSearchWithTrace(String query, AiServerResponse ragResponse, AnalysisTrace analysisTrace) {
+        log.info("동적 SQL 기반 상품 검색 실행: {}", query);
+        
+        try {
+            // 1. 동적 SQL 기반 상품 검색
+            List<NaverShoppingItem> products = searchExecutorService.executeDynamicSearch(query, ragResponse);
+            
+            // 2. 가격 정렬 적용
+            String sortOrder = keywordAnalyzerService.detectPriceSortRequest(query);
+            if (sortOrder != null) {
+                products = searchExecutorService.sortProductsByPrice(products, sortOrder);
+                log.info("가격순 정렬 적용: {}", sortOrder);
+            }
+            
+            // 3. 응답 생성
+            return responseBuilderService.createSearchResponseWithTrace(
+                query, 
+                products, 
+                sortOrder, 
+                analysisTrace,
+                ragResponse != null ? ragResponse.getFinal_intent() : "product_search",
+                ragResponse != null ? ragResponse.getConfidence() : 0.5f
+            );
+            
+        } catch (Exception e) {
+            log.error("동적 SQL 기반 상품 검색 중 오류 발생: {}", query, e);
+            return responseBuilderService.createErrorResponse(query);
         }
     }
 
