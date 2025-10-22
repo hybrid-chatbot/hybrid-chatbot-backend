@@ -23,8 +23,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ResponseBuilderService {
 
-    private final ConfidenceCalculatorService confidenceCalculatorService;
-
     /**
      * 검색 응답 생성
      * 
@@ -238,5 +236,114 @@ public class ResponseBuilderService {
         } else {
             return "keyword_matching"; // 기본적으로 키워드 매칭
         }
+    }
+
+    /**
+     * 동적 SQL 기반 검색 응답 생성 (추적 정보 포함)
+     * 
+     * @param query 검색어
+     * @param products 검색된 상품 목록
+     * @param sortOrder 정렬 순서
+     * @param analysisTrace 분석 추적 정보
+     * @param intentType 의도 타입
+     * @param confidence 신뢰도
+     * @return 검색 응답
+     */
+    public ShoppingMessageResponse createSearchResponseWithTrace(
+            String query, 
+            List<NaverShoppingItem> products, 
+            String sortOrder, 
+            AnalysisTrace analysisTrace,
+            String intentType,
+            float confidence) {
+        
+        log.info("동적 SQL 기반 검색 응답 생성 - 검색어: {}, 상품수: {}, 의도: {}, 신뢰도: {}", 
+                query, products.size(), intentType, confidence);
+        
+        try {
+            // 기본 응답 메시지 생성
+            String responseMessage = generateDynamicSearchMessage(query, products.size(), intentType, confidence);
+            
+            // 상품 데이터 변환
+            List<ShoppingMessageResponse.ProductCard> productList = convertToProductList(products);
+            
+            // 분석 정보 생성
+            ShoppingMessageResponse.ShoppingAnalysisInfo analysisInfo = ShoppingMessageResponse.ShoppingAnalysisInfo.builder()
+                    .engine("dynamic_sql")
+                    .intentType(intentType)
+                    .confidence(String.valueOf(confidence))
+                    .analysisMethod("RAG 기반 동적 SQL 쿼리")
+                    .build();
+            
+            return ShoppingMessageResponse.builder()
+                    .response(responseMessage)
+                    .messageType("shopping")
+                    .products(productList)
+                    .analysisInfo(analysisInfo)
+                    .timestamp(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("동적 SQL 기반 검색 응답 생성 중 오류 발생: {}", query, e);
+            return createErrorResponse(query);
+        }
+    }
+    
+    /**
+     * 동적 SQL 검색 메시지 생성
+     */
+    private String generateDynamicSearchMessage(String query, int productCount, String intentType, float confidence) {
+        StringBuilder message = new StringBuilder();
+        
+        message.append("'").append(query).append("'에 대한 ");
+        
+        // 의도별 메시지
+        switch (intentType.toLowerCase()) {
+            case "product_search":
+                message.append("검색 결과 ");
+                break;
+            case "product_recommendation":
+                message.append("추천 상품 ");
+                break;
+            case "product_filter":
+                message.append("필터링된 상품 ");
+                break;
+            case "product_compare":
+                message.append("비교 상품 ");
+                break;
+            case "brand_search":
+                message.append("브랜드별 상품 ");
+                break;
+            case "category_search":
+                message.append("카테고리별 상품 ");
+                break;
+            case "price_range_search":
+                message.append("가격대별 상품 ");
+                break;
+            default:
+                message.append("검색 결과 ");
+        }
+        
+        message.append(productCount).append("개를 찾았습니다.");
+        
+        // 신뢰도 정보 추가
+        if (confidence > 0.8f) {
+            message.append(" (높은 정확도)");
+        } else if (confidence > 0.6f) {
+            message.append(" (중간 정확도)");
+        } else {
+            message.append(" (기본 정확도)");
+        }
+        
+        return message.toString();
+    }
+    
+    /**
+     * NaverShoppingItem 리스트를 ProductCard 리스트로 변환
+     */
+    private List<ShoppingMessageResponse.ProductCard> convertToProductList(List<NaverShoppingItem> products) {
+        return products.stream()
+                .map(ShoppingMessageResponse::fromNaverShoppingItem)
+                .collect(java.util.stream.Collectors.toList());
     }
 }
