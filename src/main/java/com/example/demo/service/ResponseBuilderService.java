@@ -174,22 +174,15 @@ public class ResponseBuilderService {
                 .map(ShoppingMessageResponse::fromNaverShoppingItem)
                 .collect(Collectors.toList());
         
-        // 하이브리드 신뢰도 분석 정보 추출
-        String aiServerConfidence = trace.getRagConfidence() != null ? 
-            String.format("%.2f", trace.getRagConfidence()) : "N/A";
-        String backendConfidence = String.format("%.2f", intentScore);
-        String confidenceSource = determineConfidenceSource(trace, intentScore);
-        String analysisMethod = determineAnalysisMethod(trace, intentScore);
+        // AI 서버 신뢰도만 사용
+        String confidence = String.format("%.2f", intentScore);
         
-        // 분석 정보 생성 (하이브리드 신뢰도 정보 포함)
+        // 분석 정보 생성 (AI 서버 신뢰도만 사용)
         ShoppingMessageResponse.ShoppingAnalysisInfo analysisInfo = ShoppingMessageResponse.ShoppingAnalysisInfo.builder()
                 .intentType(intentName)
-                .confidence(String.format("%.2f", intentScore)) // 최종 신뢰도
-                .aiServerConfidence(aiServerConfidence) // AI 서버 신뢰도
-                .backendConfidence(backendConfidence) // 백엔드 신뢰도
-                .confidenceSource(confidenceSource) // 신뢰도 소스
+                .confidence(confidence) // AI 서버 신뢰도
                 .engine(engine) // 사용된 엔진
-                .analysisMethod(analysisMethod) // 분석 방법
+                .analysisMethod("LLM 기반 동적 SQL 쿼리") // 분석 방법
                 .originalQuery(query)
                 .totalResults(products.size())
                 .build();
@@ -201,42 +194,6 @@ public class ResponseBuilderService {
                 .build();
     }
 
-    /**
-     * 신뢰도 소스 결정
-     */
-    private String determineConfidenceSource(AnalysisTrace trace, float finalConfidence) {
-        if (trace.getRagConfidence() == null) {
-            return "backend"; // AI 서버 신뢰도가 없으면 백엔드
-        }
-        
-        float aiConfidence = trace.getRagConfidence().floatValue();
-        float backendConfidence = finalConfidence;
-        float difference = Math.abs(aiConfidence - backendConfidence);
-        
-        if (difference > 0.3f) {
-            return "hybrid"; // 차이가 크면 하이브리드
-        } else {
-            return "ai_server"; // 차이가 적으면 AI 서버
-        }
-    }
-    
-    /**
-     * 분석 방법 결정
-     */
-    private String determineAnalysisMethod(AnalysisTrace trace, float finalConfidence) {
-        if (trace.getRagConfidence() == null) {
-            return "keyword_matching"; // AI 서버 신뢰도가 없으면 키워드 매칭
-        }
-        
-        String engine = trace.getFinalEngine();
-        if ("rag".equals(engine)) {
-            return "deep_learning"; // RAG 모델 사용
-        } else if ("hybrid".equals(determineConfidenceSource(trace, finalConfidence))) {
-            return "hybrid"; // 하이브리드 방식
-        } else {
-            return "keyword_matching"; // 기본적으로 키워드 매칭
-        }
-    }
 
     /**
      * 동적 SQL 기반 검색 응답 생성 (추적 정보 포함)
@@ -272,7 +229,7 @@ public class ResponseBuilderService {
                     .engine("dynamic_sql")
                     .intentType(intentType)
                     .confidence(String.valueOf(confidence))
-                    .analysisMethod("RAG 기반 동적 SQL 쿼리")
+                    .analysisMethod("LLM 기반 동적 SQL 쿼리")
                     .build();
             
             return ShoppingMessageResponse.builder()

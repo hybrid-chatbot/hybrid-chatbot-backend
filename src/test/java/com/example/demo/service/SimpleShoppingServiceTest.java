@@ -45,7 +45,7 @@ class SimpleShoppingServiceTest {
     private NaverShoppingService naverShoppingService;
     
     @Mock
-    private RagAnalysisService ragAnalysisService;
+    private AiServerService aiServerService;
     
     @Mock
     private SearchExecutorService searchExecutorService;
@@ -53,8 +53,6 @@ class SimpleShoppingServiceTest {
     @Mock
     private ResponseBuilderService responseBuilderService;
     
-    @Mock
-    private KeywordAnalyzerService keywordAnalyzerService;
     
     @InjectMocks
     private SimpleShoppingService simpleShoppingService;
@@ -159,9 +157,7 @@ class SimpleShoppingServiceTest {
 
         // 기본적으로 전역 anyString 스텁은 사용하지 않음 (특정 eq 스텁만 사용)
 
-        // 정렬 키워드 분석은 기본적으로 영향 없도록 설정
-        lenient().when(keywordAnalyzerService.detectPriceSortRequest(anyString())).thenReturn(null);
-        lenient().when(keywordAnalyzerService.removeSortKeywords(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        // 정렬 키워드 분석은 기본적으로 영향 없도록 설정 (KeywordAnalyzerService 제거됨)
 
         // 키워드 검색 경로별 결과 설정
         when(searchExecutorService.searchProductsInDatabase(eq("나이키 운동화")))
