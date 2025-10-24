@@ -50,7 +50,7 @@ class ShoppingChatControllerTest {
 
     // 모듈화된 서비스들 모킹
     @MockBean
-    private com.example.demo.service.RagAnalysisService ragAnalysisService;
+    private com.example.demo.service.AiServerService aiServerService;
     
     @MockBean
     private com.example.demo.service.SearchExecutorService searchExecutorService;
@@ -58,8 +58,6 @@ class ShoppingChatControllerTest {
     @MockBean
     private com.example.demo.service.ResponseBuilderService responseBuilderService;
     
-    @MockBean
-    private com.example.demo.service.KeywordAnalyzerService keywordAnalyzerService;
 
     @Autowired
     private ObjectMapper objectMapper;

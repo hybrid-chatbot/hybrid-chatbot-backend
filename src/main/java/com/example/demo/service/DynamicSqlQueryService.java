@@ -24,22 +24,22 @@ public class DynamicSqlQueryService {
     private EntityManager entityManager;
 
     /**
-     * RAG 분석 결과를 기반으로 동적 SQL 쿼리 생성
+     * LLM 분석 결과를 기반으로 동적 SQL 쿼리 생성
      * 
      * @param query 사용자 검색어
-     * @param ragResponse RAG 분석 결과
+     * @param aiResponse LLM 분석 결과
      * @return 생성된 SQL 쿼리와 파라미터
      */
-    public DynamicQueryResult generateDynamicQuery(String query, AiServerResponse ragResponse) {
+    public DynamicQueryResult generateDynamicQuery(String query, AiServerResponse aiResponse) {
         log.info("동적 SQL 쿼리 생성 시작 - 검색어: {}, 의도: {}", query, 
-                ragResponse != null ? ragResponse.getFinal_intent() : "unknown");
+                aiResponse != null ? aiResponse.getFinal_intent() : "unknown");
         
-        if (ragResponse == null) {
+        if (aiResponse == null) {
             return generateFallbackQuery(query);
         }
         
-        String intent = ragResponse.getFinal_intent();
-        float confidence = ragResponse.getConfidence() != null ? ragResponse.getConfidence() : 0.0f;
+        String intent = aiResponse.getFinal_intent();
+        float confidence = aiResponse.getConfidence() != null ? aiResponse.getConfidence() : 0.0f;
         
         // 의도별 동적 쿼리 생성
         switch (intent.toLowerCase()) {

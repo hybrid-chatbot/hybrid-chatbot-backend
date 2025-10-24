@@ -92,14 +92,9 @@ public class ShoppingMessageResponse {
         private String originalQuery; // 원본 검색어
         private Integer totalResults; // 총 검색 결과 수
         private String searchTime; // 검색 소요 시간
-        private String confidence; // 의도 분석 신뢰도
-        
-        // 하이브리드 신뢰도 분석 정보
-        private String aiServerConfidence; // AI 서버 신뢰도
-        private String backendConfidence; // 백엔드 신뢰도
-        private String confidenceSource; // 신뢰도 소스: "ai_server", "backend", "hybrid"
-        private String engine; // 사용된 엔진: "rag", "fallback", "error_fallback"
-        private String analysisMethod; // 분석 방법: "keyword_matching", "deep_learning", "hybrid"
+        private String confidence; // AI 서버 신뢰도
+        private String engine; // 사용된 엔진: "dynamic_sql", "fallback"
+        private String analysisMethod; // 분석 방법: "LLM 기반 동적 SQL 쿼리"
     }
 
     /**

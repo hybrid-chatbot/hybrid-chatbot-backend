@@ -25,23 +25,22 @@ public class SearchExecutorService {
     private final NaverShoppingItemRepository itemRepository;
     private final DynamicSqlQueryService dynamicSqlQueryService;
     private final NaverShoppingService naverShoppingService;
-    private final KeywordAnalyzerService keywordAnalyzerService;
 
     /**
-     * RAG 의도분석 기반 동적 SQL 검색
+     * LLM 의도분석 기반 동적 SQL 검색
      * 
      * @param query 사용자 검색어
-     * @param ragResponse RAG 분석 결과
+     * @param aiResponse LLM 분석 결과
      * @return 검색된 상품 목록
      */
-    public List<NaverShoppingItem> executeDynamicSearch(String query, AiServerResponse ragResponse) {
+    public List<NaverShoppingItem> executeDynamicSearch(String query, AiServerResponse aiResponse) {
         log.info("동적 SQL 기반 상품 검색 시작 - 검색어: {}, 의도: {}", 
-                query, ragResponse != null ? ragResponse.getFinal_intent() : "unknown");
+                query, aiResponse != null ? aiResponse.getFinal_intent() : "unknown");
         
         try {
-            // 1. RAG 분석 결과를 기반으로 동적 SQL 쿼리 생성
+            // 1. LLM 분석 결과를 기반으로 동적 SQL 쿼리 생성
             DynamicSqlQueryService.DynamicQueryResult queryResult = 
-                dynamicSqlQueryService.generateDynamicQuery(query, ragResponse);
+                dynamicSqlQueryService.generateDynamicQuery(query, aiResponse);
             
             log.info("생성된 SQL 쿼리: {}", queryResult.getSql());
             log.info("쿼리 파라미터: {}", queryResult.getParameters());
@@ -80,181 +79,6 @@ public class SearchExecutorService {
         }
     }
 
-    /**
-     * 추천 상품 검색 (가격대와 브랜드 기반)
-     */
-    public List<NaverShoppingItem> executeRecommendationSearch(String query) {
-        log.info("추천 상품 검색 실행: {}", query);
-        
-        // 1. 기본 검색어로 상품 검색
-        List<NaverShoppingItem> products = itemRepository.findAll().stream()
-                .filter(item -> item.getTitle().toLowerCase().contains(query.toLowerCase()) ||
-                               (item.getBrand() != null && item.getBrand().toLowerCase().contains(query.toLowerCase())))
-                .limit(10)
-                .collect(Collectors.toList());
-        
-        // 2. 결과가 부족하면 네이버 API 호출
-        if (products.size() < 5) {
-            naverShoppingService.searchAndSaveProducts(query, 20, 1);
-            products = itemRepository.findAll().stream()
-                    .filter(item -> item.getTitle().toLowerCase().contains(query.toLowerCase()))
-                    .limit(10)
-                    .collect(Collectors.toList());
-        }
-        
-        // 3. 추천 로직: 가격대별로 다양하게 추천
-        if (products.size() > 5) {
-            // 가격대별로 분산하여 추천
-            List<NaverShoppingItem> lowPrice = products.stream()
-                    .filter(item -> item.getLprice() < 50000)
-                    .limit(3)
-                    .collect(Collectors.toList());
-            
-            List<NaverShoppingItem> midPrice = products.stream()
-                    .filter(item -> item.getLprice() >= 50000 && item.getLprice() < 100000)
-                    .limit(3)
-                    .collect(Collectors.toList());
-            
-            List<NaverShoppingItem> highPrice = products.stream()
-                    .filter(item -> item.getLprice() >= 100000)
-                    .limit(3)
-                    .collect(Collectors.toList());
-            
-            products = new ArrayList<>();
-            products.addAll(lowPrice);
-            products.addAll(midPrice);
-            products.addAll(highPrice);
-        }
-        
-        return products;
-    }
-
-    /**
-     * 필터링 상품 검색
-     */
-    public List<NaverShoppingItem> executeFilterSearch(String query) {
-        log.info("필터링 상품 검색 실행: {}", query);
-        
-        List<NaverShoppingItem> products = searchProductsInDatabase(query);
-        
-        // 가격대 필터링 (예: "10만원 이하", "5만원~10만원")
-        if (query.contains("만원")) {
-            products = products.stream()
-                    .filter(item -> {
-                        int price = item.getLprice();
-                        if (query.contains("이하")) {
-                            return price <= 100000; // 10만원 이하
-                        } else if (query.contains("~")) {
-                            return price >= 50000 && price <= 100000; // 5만원~10만원
-                        }
-                        return true;
-                    })
-                    .collect(Collectors.toList());
-        }
-        
-        return products;
-    }
-
-    /**
-     * 비교 상품 검색
-     */
-    public List<NaverShoppingItem> executeComparisonSearch(String query) {
-        log.info("비교 상품 검색 실행: {}", query);
-        
-        // 여러 키워드로 검색하여 비교 대상 상품들 수집
-        String[] keywords = query.split("\\s+");
-        List<NaverShoppingItem> products = new ArrayList<>();
-        
-        for (String keyword : keywords) {
-            if (keyword.length() > 1) {
-                List<NaverShoppingItem> keywordResults = itemRepository.findByTitleContainingIgnoreCase(keyword);
-                products.addAll(keywordResults);
-            }
-        }
-        
-        // 중복 제거 및 최대 6개로 제한
-        return products.stream()
-                .distinct()
-                .limit(6)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 일반 상품 검색
-     */
-    public List<NaverShoppingItem> executeGeneralSearch(String query) {
-        log.info("일반 상품 검색 실행: {}", query);
-        
-        // 기존 searchProductsInDatabase 로직 사용
-        List<NaverShoppingItem> products = searchProductsInDatabase(query);
-        
-        // 결과가 부족하면 네이버 API 호출
-        if (products.size() < 5) {
-            naverShoppingService.searchAndSaveProducts(query, 20, 1);
-            products = searchProductsInDatabase(query);
-        }
-        
-        return products;
-    }
-
-    /**
-     * 브랜드별 상품 검색
-     */
-    public List<NaverShoppingItem> executeBrandSearch(String query) {
-        log.info("브랜드별 상품 검색 실행: {}", query);
-        
-        return itemRepository.findAll().stream()
-                .filter(item -> {
-                    String brand = item.getBrand();
-                    return brand != null && brand.toLowerCase().contains(query.toLowerCase());
-                })
-                .limit(10)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 카테고리별 상품 검색
-     */
-    public List<NaverShoppingItem> executeCategorySearch(String query) {
-        log.info("카테고리별 상품 검색 실행: {}", query);
-        
-        return itemRepository.findAll().stream()
-                .filter(item -> {
-                    String category1 = item.getCategory1();
-                    String category2 = item.getCategory2();
-                    return (category1 != null && category1.toLowerCase().contains(query.toLowerCase())) ||
-                           (category2 != null && category2.toLowerCase().contains(query.toLowerCase()));
-                })
-                .limit(10)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 가격대별 상품 검색
-     */
-    public List<NaverShoppingItem> executePriceRangeSearch(String query) {
-        log.info("가격대별 상품 검색 실행: {}", query);
-        
-        return itemRepository.findAll().stream()
-                .filter(item -> {
-                    String title = item.getTitle().toLowerCase();
-                    return title.contains(query.toLowerCase());
-                })
-                .filter(item -> {
-                    // 가격대 필터링 (예: "10만원 이하", "5만원~10만원")
-                    if (query.contains("만원")) {
-                        int price = item.getLprice();
-                        if (query.contains("이하")) {
-                            return price <= 100000; // 10만원 이하
-                        } else if (query.contains("~")) {
-                            return price >= 50000 && price <= 100000; // 5만원~10만원
-                        }
-                    }
-                    return true;
-                })
-                .limit(10)
-                .collect(Collectors.toList());
-    }
 
     /**
      * 데이터베이스에서 상품 검색

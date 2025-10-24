@@ -39,15 +39,14 @@ public class SimpleShoppingService {
     private final NaverShoppingService naverShoppingService;
     
     // 모듈화된 서비스들
-    private final RagAnalysisService ragAnalysisService;
+    private final AiServerService aiServerService;
     private final SearchExecutorService searchExecutorService;
     private final ResponseBuilderService responseBuilderService;
-    private final KeywordAnalyzerService keywordAnalyzerService;
 
     /**
-     * RAG 모델 직접 의도분석을 포함한 상품 검색
+     * LLM 직접 의도분석을 포함한 상품 검색
      * 
-     * DialogFlow를 우회하고 바로 RAG 모델로 상품검색 의도를 분석합니다.
+     * 외부 AI 서버의 LLM 모델로 상품검색 의도를 분석합니다.
      * 
      * @param query 사용자가 입력한 검색 키워드
      * @param sessionId 세션 ID
@@ -56,43 +55,54 @@ public class SimpleShoppingService {
      */
     @Transactional
     public ShoppingMessageResponse searchProductsWithIntent(String query, String sessionId, String languageCode) {
-        log.info("RAG 모델 직접 의도분석 기반 상품 검색 시작: {}", query);
+        log.info("LLM 직접 의도분석 기반 상품 검색 시작: {}", query);
         
         // 분석 추적을 위한 빌더
         AnalysisTrace.Builder traceBuilder = AnalysisTrace.builder();
         
         try {
-            // RAG 모델로 직접 의도분석
-            AiServerResponse ragResponse = ragAnalysisService.performRagAnalysis(query, traceBuilder);
+            // 상품검색용 의도 목록
+            List<String> shoppingIntents = List.of(
+                "product_search",           // 일반 상품 검색
+                "product_recommendation",   // 상품 추천
+                "product_filter",          // 상품 필터링
+                "product_compare",         // 상품 비교
+                "brand_search",            // 브랜드별 검색
+                "category_search",         // 카테고리별 검색
+                "price_range_search"       // 가격대별 검색
+            );
+            
+            // LLM 모델로 직접 의도분석
+            AiServerResponse aiResponse = aiServerService.classifyIntent(query, shoppingIntents);
             
             String finalIntentName = "product_search"; // 기본값
             float finalIntentScore = 0.5f; // 기본 신뢰도 (낮음)
             String finalEngine = "fallback";
             
-            if (ragResponse != null) {
-                finalIntentName = ragResponse.getFinal_intent();
-                finalEngine = ragResponse.getEngine();
-                finalIntentScore = ragResponse.getConfidence() != null ? 
-                    ragResponse.getConfidence() : 0.8f;
+            if (aiResponse != null) {
+                finalIntentName = aiResponse.getFinal_intent();
+                finalEngine = aiResponse.getEngine();
+                finalIntentScore = aiResponse.getConfidence() != null ? 
+                    aiResponse.getConfidence() : 0.8f;
                 
-                log.info("RAG 의도분석 결과 - 의도: {}, 신뢰도: {}, 엔진: {}", 
+                log.info("LLM 의도분석 결과 - 의도: {}, 신뢰도: {}, 엔진: {}", 
                         finalIntentName, finalIntentScore, finalEngine);
             } else {
-                log.warn("RAG 분석 실패 - 기본 검색으로 처리");
+                log.warn("LLM 분석 실패 - 기본 검색으로 처리");
             }
             
             // 신뢰도에 따른 처리 방식 결정
             if (finalIntentScore < 0.6f) {
-                log.warn("RAG 신뢰도가 낮음 ({}). 안전한 일반 검색으로 처리", finalIntentScore);
+                log.warn("LLM 신뢰도가 낮음 ({}). 안전한 일반 검색으로 처리", finalIntentScore);
                 return searchProducts(query);
             }
             
             // 최종 의도로 동적 SQL 기반 상품 검색 실행
             log.info("최종 의도분석 결과 - 의도: {}, 신뢰도: {}, 엔진: {}", finalIntentName, finalIntentScore, finalEngine);
-            return executeDynamicSearchWithTrace(query, ragResponse, traceBuilder.build());
+            return executeDynamicSearchWithTrace(query, aiResponse, traceBuilder.build());
             
         } catch (Exception e) {
-            log.error("RAG 모델 직접 의도분석 기반 상품 검색 중 오류 발생: {}", query, e);
+            log.error("LLM 직접 의도분석 기반 상품 검색 중 오류 발생: {}", query, e);
             return searchProducts(query);
         }
     }
@@ -101,32 +111,27 @@ public class SimpleShoppingService {
      * 동적 SQL 기반 상품 검색 실행
      * 
      * @param query 사용자 검색어
-     * @param ragResponse RAG 분석 결과
+     * @param aiResponse LLM 분석 결과
      * @param analysisTrace 분석 추적 정보
      * @return 검색 결과 응답
      */
-    private ShoppingMessageResponse executeDynamicSearchWithTrace(String query, AiServerResponse ragResponse, AnalysisTrace analysisTrace) {
+    private ShoppingMessageResponse executeDynamicSearchWithTrace(String query, AiServerResponse aiResponse, AnalysisTrace analysisTrace) {
         log.info("동적 SQL 기반 상품 검색 실행: {}", query);
         
         try {
             // 1. 동적 SQL 기반 상품 검색
-            List<NaverShoppingItem> products = searchExecutorService.executeDynamicSearch(query, ragResponse);
+            List<NaverShoppingItem> products = searchExecutorService.executeDynamicSearch(query, aiResponse);
             
-            // 2. 가격 정렬 적용
-            String sortOrder = keywordAnalyzerService.detectPriceSortRequest(query);
-            if (sortOrder != null) {
-                products = searchExecutorService.sortProductsByPrice(products, sortOrder);
-                log.info("가격순 정렬 적용: {}", sortOrder);
-            }
+            // 2. LLM이 동적 SQL로 정렬을 처리하므로 별도 정렬 불필요
             
             // 3. 응답 생성
             return responseBuilderService.createSearchResponseWithTrace(
                 query, 
                 products, 
-                sortOrder, 
+                null, // LLM이 동적 SQL로 정렬 처리
                 analysisTrace,
-                ragResponse != null ? ragResponse.getFinal_intent() : "product_search",
-                ragResponse != null ? ragResponse.getConfidence() : 0.5f
+                aiResponse != null ? aiResponse.getFinal_intent() : "product_search",
+                aiResponse != null ? aiResponse.getConfidence() : 0.5f
             );
             
         } catch (Exception e) {
@@ -134,6 +139,8 @@ public class SimpleShoppingService {
             return responseBuilderService.createErrorResponse(query);
         }
     }
+
+    
 
     /**
      * 키워드로 상품 검색 (기존 메서드 - 폴백용)
@@ -155,28 +162,18 @@ public class SimpleShoppingService {
         log.info("상품 검색 시작: {}", query);
         
         try {
-            // 1단계: 가격순 정렬 요청 감지
-            String sortOrder = keywordAnalyzerService.detectPriceSortRequest(query);
-            String cleanQuery = keywordAnalyzerService.removeSortKeywords(query);
+            // 1단계: 데이터베이스에서 기존 상품 검색
+            List<NaverShoppingItem> products = searchExecutorService.searchProductsInDatabase(query);
             
-            // 2단계: 데이터베이스에서 기존 상품 검색
-            List<NaverShoppingItem> products = searchExecutorService.searchProductsInDatabase(cleanQuery);
-            
-            // 3단계: 결과가 부족하면 네이버 API 호출
+            // 2단계: 결과가 부족하면 네이버 API 호출
             if (products.size() < 5) {
-                log.info("기존 데이터가 부족하여 네이버 API 호출 - 검색어: {}", cleanQuery);
-                naverShoppingService.searchAndSaveProducts(cleanQuery, 20, 1);
-                products = searchExecutorService.searchProductsInDatabase(cleanQuery);
+                log.info("기존 데이터가 부족하여 네이버 API 호출 - 검색어: {}", query);
+                naverShoppingService.searchAndSaveProducts(query, 20, 1);
+                products = searchExecutorService.searchProductsInDatabase(query);
             }
             
-            // 4단계: 가격순 정렬 적용
-            if (sortOrder != null) {
-                products = searchExecutorService.sortProductsByPrice(products, sortOrder);
-                log.info("가격순 정렬 적용: {}", sortOrder);
-            }
-            
-            // 5단계: 검색 결과를 채팅 UI용 응답 형태로 변환
-            return responseBuilderService.createSearchResponse(query, products, sortOrder);
+            // 3단계: 검색 결과를 채팅 UI용 응답 형태로 변환
+            return responseBuilderService.createSearchResponse(query, products, null);
             
         } catch (Exception e) {
             log.error("상품 검색 중 오류 발생: {}", query, e);
@@ -423,100 +420,11 @@ public class SimpleShoppingService {
         return itemRepository.findAll();
     }
 
-    /**
-     * 가격 정렬 테스트용 메서드
-     * 
-     * @param query 검색어
-     * @return 정렬된 상품 목록
-     */
-    public List<NaverShoppingItem> testPriceSorting(String query) {
-        log.info("가격 정렬 테스트: {}", query);
-        
-        // 1. 정렬 요청 감지
-        String sortOrder = keywordAnalyzerService.detectPriceSortRequest(query);
-        log.info("감지된 정렬 순서: {}", sortOrder);
-        
-        // 2. 정렬 키워드 제거
-        String cleanQuery = keywordAnalyzerService.removeSortKeywords(query);
-        log.info("정리된 검색어: '{}'", cleanQuery);
-        
-        // 3. 상품 검색
-        List<NaverShoppingItem> products = searchExecutorService.searchProductsInDatabase(cleanQuery);
-        log.info("검색된 상품 수: {}", products.size());
-        
-        // 4. 가격 정렬 적용
-        if (sortOrder != null && !products.isEmpty()) {
-            products = searchExecutorService.sortProductsByPrice(products, sortOrder);
-            log.info("가격 정렬 적용: {}", sortOrder);
-        }
-        
-        return products;
-    }
 
 
 
 
     
 
-    /**
-     * 분석 추적 정보를 포함한 상품 검색 실행
-     * 
-     * @param query 사용자 쿼리
-     * @param intentName 최종 의도명
-     * @param intentScore 최종 의도 신뢰도
-     * @param engine 사용된 엔진
-     * @param trace 분석 추적 정보
-     * @return 상품 검색 결과
-     */
-    private ShoppingMessageResponse executeSearchByIntentWithTrace(String query, String intentName, 
-                                                                 float intentScore, String engine, 
-                                                                 AnalysisTrace trace) {
-        log.info("추적 정보를 포함한 의도별 상품 검색 실행 - 의도: {}, 엔진: {}", intentName, engine);
-        
-        List<NaverShoppingItem> products;
-        String responseMessage;
-        
-        // 의도명을 소문자로 변환하여 비교
-        String lowerIntent = intentName.toLowerCase();
-        
-        if (lowerIntent.contains("recommend") || lowerIntent.contains("추천")) {
-            products = searchExecutorService.executeRecommendationSearch(query);
-            responseMessage = String.format("'%s'에 대한 추천 상품을 찾았습니다.", query);
-            
-        } else if (lowerIntent.contains("filter") || lowerIntent.contains("필터") || lowerIntent.contains("가격")) {
-            products = searchExecutorService.executeFilterSearch(query);
-            responseMessage = String.format("'%s' 조건에 맞는 상품을 필터링했습니다.", query);
-            
-        } else if (lowerIntent.contains("compare") || lowerIntent.contains("비교")) {
-            products = searchExecutorService.executeComparisonSearch(query);
-            responseMessage = String.format("'%s' 상품들을 비교해드립니다.", query);
-            
-        } else if (lowerIntent.contains("brand") || lowerIntent.contains("브랜드")) {
-            products = searchExecutorService.executeBrandSearch(query);
-            responseMessage = String.format("'%s' 브랜드 상품을 찾았습니다.", query);
-            
-        } else if (lowerIntent.contains("category") || lowerIntent.contains("카테고리")) {
-            products = searchExecutorService.executeCategorySearch(query);
-            responseMessage = String.format("'%s' 카테고리 상품을 찾았습니다.", query);
-            
-        } else if (lowerIntent.contains("price") || lowerIntent.contains("가격")) {
-            products = searchExecutorService.executePriceRangeSearch(query);
-            responseMessage = String.format("'%s' 가격대 상품을 찾았습니다.", query);
-            
-        } else {
-            // 기본 검색
-            products = searchExecutorService.executeGeneralSearch(query);
-            responseMessage = String.format("'%s'에 대한 검색 결과입니다.", query);
-        }
-        
-        // 가격순 정렬 요청이 있으면 적용
-        String sortOrder = keywordAnalyzerService.detectPriceSortRequest(query);
-        if (sortOrder != null) {
-            products = searchExecutorService.sortProductsByPrice(products, sortOrder);
-            responseMessage += String.format(" (%s 정렬)", sortOrder.equals("asc") ? "최저가순" : "최고가순");
-        }
-        
-        return responseBuilderService.createSearchResponseWithTrace(query, products, sortOrder, responseMessage, intentName, intentScore, engine, trace);
-    }
 
 }
