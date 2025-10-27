@@ -303,4 +303,6 @@ public class ResponseBuilderService {
                 .map(ShoppingMessageResponse::fromNaverShoppingItem)
                 .collect(java.util.stream.Collectors.toList());
     }
+    
+    
 }

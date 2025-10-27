@@ -16,4 +16,4 @@ dialogflow:
 
 ai:
   server:
-    url: http://44.223.63.75:8000
+    url: http://13.125.102.69:8000

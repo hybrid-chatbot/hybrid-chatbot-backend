@@ -38,6 +38,13 @@ public class SearchExecutorService {
                 query, aiResponse != null ? aiResponse.getFinal_intent() : "unknown");
         
         try {
+            // 0. DB가 비어있는지 먼저 확인
+            long totalItems = itemRepository.count();
+            if (totalItems == 0) {
+                log.info("DB가 비어있음 - 먼저 네이버 API를 호출하여 데이터 수집");
+                naverShoppingService.searchAndSaveProducts(query, 20, 1);
+            }
+            
             // 1. LLM 분석 결과를 기반으로 동적 SQL 쿼리 생성
             DynamicSqlQueryService.DynamicQueryResult queryResult = 
                 dynamicSqlQueryService.generateDynamicQuery(query, aiResponse);
@@ -50,11 +57,12 @@ public class SearchExecutorService {
             
             log.info("동적 SQL 검색 완료 - {}개 상품 발견", products.size());
             
-            // 3. 결과가 부족하면 네이버 API 호출
+            // 3. 결과가 부족하면 네이버 API 호출 후 재검색
             if (products.size() < 5) {
-                log.info("동적 SQL 결과 부족 ({}개) - 네이버 API 호출", products.size());
+                log.info("동적 SQL 결과 부족 ({}개) - 네이버 API 호출하여 추가 데이터 수집", products.size());
                 naverShoppingService.searchAndSaveProducts(query, 20, 1);
                 products = executeDynamicQuery(queryResult); // 재검색
+                log.info("재검색 완료 - {}개 상품 발견", products.size());
             }
             
             return products;
