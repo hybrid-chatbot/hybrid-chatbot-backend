@@ -75,7 +75,7 @@ public class DynamicSqlQueryService {
         Map<String, Object> parameters = new HashMap<>();
         
         // 기본 검색 조건
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 브랜드 필터 추출 (DB 기반)
         String brand = extractBrand(query);
@@ -132,7 +132,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 추천 로직: 인기 상품 + 관련 상품
         if (confidence > 0.7f) {
@@ -156,7 +156,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 기본 검색 조건
         sql.append("(title LIKE :title OR brand LIKE :brand) ");
@@ -192,7 +192,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 비교 대상 상품들 추출
         String[] compareItems = extractCompareItems(query);
@@ -220,10 +220,10 @@ public class DynamicSqlQueryService {
         
         String brand = extractBrand(query);
         if (brand != null) {
-            sql.append("SELECT * FROM naver_shopping_item WHERE brand LIKE :brand ");
+            sql.append("SELECT * FROM naver_shopping_items WHERE brand LIKE :brand ");
             parameters.put("brand", "%" + brand + "%");
         } else {
-            sql.append("SELECT * FROM naver_shopping_item WHERE brand LIKE :query ");
+            sql.append("SELECT * FROM naver_shopping_items WHERE brand LIKE :query ");
             parameters.put("query", "%" + query + "%");
         }
         
@@ -241,7 +241,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         sql.append("(category1 LIKE :category OR category2 LIKE :category) ");
         parameters.put("category", "%" + query + "%");
         
@@ -259,7 +259,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 기본 검색 조건
         sql.append("(title LIKE :title OR brand LIKE :brand) ");
@@ -288,7 +288,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         sql.append("(title LIKE :title OR brand LIKE :brand OR category1 LIKE :category) ");
         parameters.put("title", "%" + query + "%");
         parameters.put("brand", "%" + query + "%");
@@ -302,14 +302,24 @@ public class DynamicSqlQueryService {
      * 네이티브 SQL 쿼리 실행
      * 
      * @param sql 실행할 SQL 쿼리
+     * @param parameters 쿼리 파라미터
      * @return 검색된 상품 목록
      */
     @Transactional(readOnly = true)
-    public List<NaverShoppingItem> executeNativeQuery(String sql) {
+    public List<NaverShoppingItem> executeNativeQuery(String sql, Map<String, Object> parameters) {
         try {
             log.info("네이티브 SQL 쿼리 실행: {}", sql);
+            log.info("파라미터: {}", parameters);
             
             Query query = entityManager.createNativeQuery(sql, NaverShoppingItem.class);
+            
+            // 파라미터 바인딩
+            if (parameters != null) {
+                for (Map.Entry<String, Object> entry : parameters.entrySet()) {
+                    query.setParameter(entry.getKey(), entry.getValue());
+                }
+            }
+            
             @SuppressWarnings("unchecked")
             List<NaverShoppingItem> results = query.getResultList();
             
@@ -446,7 +456,7 @@ public class DynamicSqlQueryService {
         }
         
         // 1. DB에서 브랜드 조회
-        String sql = "SELECT DISTINCT brand FROM naver_shopping_item WHERE brand IS NOT NULL AND brand != '' ORDER BY brand";
+        String sql = "SELECT DISTINCT brand FROM naver_shopping_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand";
         
         List<String> dbBrands = new ArrayList<>();
         try {

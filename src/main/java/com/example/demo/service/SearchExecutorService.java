@@ -79,8 +79,8 @@ public class SearchExecutorService {
      */
     private List<NaverShoppingItem> executeDynamicQuery(DynamicSqlQueryService.DynamicQueryResult queryResult) {
         try {
-            // DynamicSqlQueryService를 통해 네이티브 SQL 쿼리 실행
-            return dynamicSqlQueryService.executeNativeQuery(queryResult.getSql());
+            // DynamicSqlQueryService를 통해 네이티브 SQL 쿼리 실행 (파라미터 포함)
+            return dynamicSqlQueryService.executeNativeQuery(queryResult.getSql(), queryResult.getParameters());
         } catch (Exception e) {
             log.error("동적 SQL 쿼리 실행 실패: {}", queryResult.getSql(), e);
             return new ArrayList<>();

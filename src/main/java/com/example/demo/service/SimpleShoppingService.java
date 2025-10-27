@@ -131,7 +131,7 @@ public class SimpleShoppingService {
                 null, // LLM이 동적 SQL로 정렬 처리
                 analysisTrace,
                 aiResponse != null ? aiResponse.getFinal_intent() : "product_search",
-                aiResponse != null ? aiResponse.getConfidence() : 0.5f
+                (aiResponse != null && aiResponse.getConfidence() != null) ? aiResponse.getConfidence() : 0.5f
             );
             
         } catch (Exception e) {
@@ -420,11 +420,86 @@ public class SimpleShoppingService {
         return itemRepository.findAll();
     }
 
+    /**
+     * DB에 저장된 총 상품 개수 조회
+     * 
+     * @return 총 상품 개수
+     */
+    public long countTotalProducts() {
+        log.info("DB 총 상품 개수 조회");
+        return itemRepository.count();
+    }
 
-
-
-
-    
-
-
+    /**
+     * 네이버 API를 사용하여 DB 초기화 (모든 데이터 수집)
+     * 
+     * @param query 검색어
+     */
+    @Transactional
+    public void initDatabaseWithNaverApi(String query) {
+        log.info("네이버 API를 통한 DB 초기화 시작 - 검색어: {}", query);
+        
+        try {
+            // 1. 첫 번째 호출로 전체 개수 확인
+            var firstResponse = naverShoppingService.searchProducts(query, 100, 1);
+            
+            if (firstResponse == null) {
+                log.warn("네이버 API 응답이 null입니다.");
+                return;
+            }
+            
+            int totalAvailable = firstResponse.getTotal();
+            log.info("네이버 API 전체 상품 개수: {}개", totalAvailable);
+            
+            if (totalAvailable == 0) {
+                log.info("검색 결과가 없습니다.");
+                return;
+            }
+            
+            // 2. 네이버 API는 최대 100개씩 반환하므로, 여러 페이지를 순회하며 모든 데이터 수집
+            int totalCount = 0;
+            int display = 100; // 네이버 API 최대값
+            int start = 1;
+            
+            do {
+                int page = (start / display) + 1;
+                log.info("네이버 API 호출 - 페이지: {}, 시작 인덱스: {}", page, start);
+                
+                var response = naverShoppingService.searchAndSaveProducts(query, display, start);
+                
+                if (response == null || response.getItems() == null || response.getItems().isEmpty()) {
+                    log.info("더 이상 데이터가 없어 중단합니다.");
+                    break;
+                }
+                
+                int itemsCount = response.getItems().size();
+                totalCount += itemsCount;
+                log.info("페이지 {} 완료 - {}개 상품 저장 (총 {}개 / 전체 {}개)", page, itemsCount, totalCount, totalAvailable);
+                
+                // 다음 페이지로 이동 (네이버 API는 display 단위로 이동)
+                start += display;
+                
+                // 전체 데이터 수집 완료 확인
+                if (start > totalAvailable) {
+                    log.info("모든 데이터 수집 완료 - 총 {}개 상품", totalCount);
+                    break;
+                }
+                
+                // 짧은 지연 시간 추가 (API 속도 제한 방지)
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    log.warn("지연 시간 중 인터럽트 발생");
+                    break;
+                }
+                
+            } while (start <= totalAvailable);
+            
+            log.info("DB 초기화 완료 - 총 {}개 상품 저장", totalCount);
+        } catch (Exception e) {
+            log.error("DB 초기화 중 오류 발생: {}", query, e);
+            throw e;
+        }
+    }
 }
