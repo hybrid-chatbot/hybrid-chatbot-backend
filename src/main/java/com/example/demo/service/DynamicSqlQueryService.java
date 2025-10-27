@@ -57,7 +57,7 @@ public class DynamicSqlQueryService {
                 return generateBrandSearchQuery(query, confidence);
             case "category_search":
                 return generateCategorySearchQuery(query, confidence);
-            case "price_range_search":
+            case "lprice_range_search":
                 return generatePriceRangeQuery(query, confidence);
             default:
                 log.warn("알 수 없는 의도: {}, 기본 검색 쿼리 생성", intent);
@@ -112,7 +112,7 @@ public class DynamicSqlQueryService {
         
         // 정렬 방식 추출
         String sortOrder = extractSortOrder(query);
-        sql.append(" ORDER BY price ").append(sortOrder);
+        sql.append(" ORDER BY lprice ").append(sortOrder);
         log.info("추출된 정렬 방식: {}", sortOrder);
         
         // 개수 추출
@@ -164,11 +164,11 @@ public class DynamicSqlQueryService {
         parameters.put("brand", "%" + query + "%");
         
         // 가격 필터 추출
-        PriceRange priceRange = extractPriceRange(query);
-        if (priceRange != null) {
-            sql.append("AND price BETWEEN :minPrice AND :maxPrice ");
-            parameters.put("minPrice", priceRange.minPrice);
-            parameters.put("maxPrice", priceRange.maxPrice);
+        PriceRange lpriceRange = extractPriceRange(query);
+        if (lpriceRange != null) {
+            sql.append("AND lprice BETWEEN :minPrice AND :maxPrice ");
+            parameters.put("minPrice", lpriceRange.minPrice);
+            parameters.put("maxPrice", lpriceRange.maxPrice);
         }
         
         // 브랜드 필터 추출
@@ -178,7 +178,7 @@ public class DynamicSqlQueryService {
             parameters.put("brandFilter", "%" + brand + "%");
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "product_filter");
     }
@@ -204,7 +204,7 @@ public class DynamicSqlQueryService {
         }
         sql.append(") ");
         
-        sql.append("ORDER BY price ASC LIMIT 10");
+        sql.append("ORDER BY lprice ASC LIMIT 10");
         
         return new DynamicQueryResult(sql.toString(), parameters, "product_compare");
     }
@@ -227,7 +227,7 @@ public class DynamicSqlQueryService {
             parameters.put("query", "%" + query + "%");
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "brand_search");
     }
@@ -245,7 +245,7 @@ public class DynamicSqlQueryService {
         sql.append("(category1 LIKE :category OR category2 LIKE :category) ");
         parameters.put("category", "%" + query + "%");
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "category_search");
     }
@@ -267,16 +267,16 @@ public class DynamicSqlQueryService {
         parameters.put("brand", "%" + query + "%");
         
         // 가격 범위 추출
-        PriceRange priceRange = extractPriceRange(query);
-        if (priceRange != null) {
-            sql.append("AND price BETWEEN :minPrice AND :maxPrice ");
-            parameters.put("minPrice", priceRange.minPrice);
-            parameters.put("maxPrice", priceRange.maxPrice);
+        PriceRange lpriceRange = extractPriceRange(query);
+        if (lpriceRange != null) {
+            sql.append("AND lprice BETWEEN :minPrice AND :maxPrice ");
+            parameters.put("minPrice", lpriceRange.minPrice);
+            parameters.put("maxPrice", lpriceRange.maxPrice);
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
-        return new DynamicQueryResult(sql.toString(), parameters, "price_range_search");
+        return new DynamicQueryResult(sql.toString(), parameters, "lprice_range_search");
     }
     
     /**
@@ -293,7 +293,7 @@ public class DynamicSqlQueryService {
         parameters.put("title", "%" + query + "%");
         parameters.put("brand", "%" + query + "%");
         parameters.put("category", "%" + query + "%");
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "fallback");
     }

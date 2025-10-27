@@ -456,10 +456,15 @@ public class SimpleShoppingService {
                 return;
             }
             
-            // 2. 네이버 API는 최대 100개씩 반환하므로, 여러 페이지를 순회하며 모든 데이터 수집
+            // 2. 네이버 API는 최대 100개씩 반환하므로, 여러 페이지를 순회하며 데이터 수집 (최대 1000개)
             int totalCount = 0;
             int display = 100; // 네이버 API 최대값
             int start = 1;
+            int maxItems = 1000; // 최대 1000개만 수집하여 성능 문제 방지
+            
+            // totalAvailable이 maxItems보다 크면 제한
+            int itemsToCollect = Math.min(totalAvailable, maxItems);
+            log.info("수집할 상품 개수: {}개 (전체 {}개 중)", itemsToCollect, totalAvailable);
             
             do {
                 int page = (start / display) + 1;
@@ -474,14 +479,20 @@ public class SimpleShoppingService {
                 
                 int itemsCount = response.getItems().size();
                 totalCount += itemsCount;
-                log.info("페이지 {} 완료 - {}개 상품 저장 (총 {}개 / 전체 {}개)", page, itemsCount, totalCount, totalAvailable);
+                log.info("페이지 {} 완료 - {}개 상품 저장 (총 {}개 / 목표 {}개)", page, itemsCount, totalCount, itemsToCollect);
+                
+                // 최대 개수에 도달하면 중단
+                if (totalCount >= maxItems) {
+                    log.info("최대 수집 개수 도달 - 총 {}개 상품", totalCount);
+                    break;
+                }
                 
                 // 다음 페이지로 이동 (네이버 API는 display 단위로 이동)
                 start += display;
                 
-                // 전체 데이터 수집 완료 확인
-                if (start > totalAvailable) {
-                    log.info("모든 데이터 수집 완료 - 총 {}개 상품", totalCount);
+                // 목표 개수 수집 완료 확인
+                if (start > itemsToCollect) {
+                    log.info("목표 데이터 수집 완료 - 총 {}개 상품", totalCount);
                     break;
                 }
                 
@@ -494,7 +505,7 @@ public class SimpleShoppingService {
                     break;
                 }
                 
-            } while (start <= totalAvailable);
+            } while (start <= itemsToCollect);
             
             log.info("DB 초기화 완료 - 총 {}개 상품 저장", totalCount);
         } catch (Exception e) {
