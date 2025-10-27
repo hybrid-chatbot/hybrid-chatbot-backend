@@ -38,6 +38,26 @@ public class SearchExecutorService {
                 query, aiResponse != null ? aiResponse.getFinal_intent() : "unknown");
         
         try {
+            // 0. DB가 비어있는지 먼저 확인
+            long totalItems = itemRepository.count();
+            if (totalItems == 0) {
+                log.info("DB가 비어있음 - 먼저 네이버 API를 호출하여 데이터 수집");
+                // 최대 1000개 수집 (100개씩 10페이지)
+                int totalSaved = 0;
+                for (int page = 1; page <= 10; page++) {
+                    int start = (page - 1) * 100 + 1;
+                    var response = naverShoppingService.searchAndSaveProducts(query, 100, start);
+                    if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                        totalSaved += response.getItems().size();
+                        log.info("페이지 {} 완료 - {}개 저장 (총 {}개)", page, response.getItems().size(), totalSaved);
+                    } else {
+                        log.info("페이지 {}에서 더 이상 데이터 없음", page);
+                        break;
+                    }
+                }
+                log.info("DB 초기화 완료 - 총 {}개 상품 저장", totalSaved);
+            }
+            
             // 1. LLM 분석 결과를 기반으로 동적 SQL 쿼리 생성
             DynamicSqlQueryService.DynamicQueryResult queryResult = 
                 dynamicSqlQueryService.generateDynamicQuery(query, aiResponse);
@@ -50,11 +70,25 @@ public class SearchExecutorService {
             
             log.info("동적 SQL 검색 완료 - {}개 상품 발견", products.size());
             
-            // 3. 결과가 부족하면 네이버 API 호출
+            // 3. 결과가 부족하면 네이버 API 호출 후 재검색
             if (products.size() < 5) {
-                log.info("동적 SQL 결과 부족 ({}개) - 네이버 API 호출", products.size());
-                naverShoppingService.searchAndSaveProducts(query, 20, 1);
+                log.info("동적 SQL 결과 부족 ({}개) - 네이버 API 호출하여 추가 데이터 수집", products.size());
+                // 최대 1000개 수집 (100개씩 10페이지)
+                int totalSaved = 0;
+                for (int page = 1; page <= 10; page++) {
+                    int start = (page - 1) * 100 + 1;
+                    var response = naverShoppingService.searchAndSaveProducts(query, 100, start);
+                    if (response != null && response.getItems() != null && !response.getItems().isEmpty()) {
+                        totalSaved += response.getItems().size();
+                        log.info("추가 수집 페이지 {} 완료 - {}개 저장 (총 {}개)", page, response.getItems().size(), totalSaved);
+                    } else {
+                        log.info("추가 수집 페이지 {}에서 더 이상 데이터 없음", page);
+                        break;
+                    }
+                }
+                log.info("추가 데이터 수집 완료 - 총 {}개 상품 저장", totalSaved);
                 products = executeDynamicQuery(queryResult); // 재검색
+                log.info("재검색 완료 - {}개 상품 발견", products.size());
             }
             
             return products;
@@ -71,8 +105,8 @@ public class SearchExecutorService {
      */
     private List<NaverShoppingItem> executeDynamicQuery(DynamicSqlQueryService.DynamicQueryResult queryResult) {
         try {
-            // DynamicSqlQueryService를 통해 네이티브 SQL 쿼리 실행
-            return dynamicSqlQueryService.executeNativeQuery(queryResult.getSql());
+            // DynamicSqlQueryService를 통해 네이티브 SQL 쿼리 실행 (파라미터 포함)
+            return dynamicSqlQueryService.executeNativeQuery(queryResult.getSql(), queryResult.getParameters());
         } catch (Exception e) {
             log.error("동적 SQL 쿼리 실행 실패: {}", queryResult.getSql(), e);
             return new ArrayList<>();

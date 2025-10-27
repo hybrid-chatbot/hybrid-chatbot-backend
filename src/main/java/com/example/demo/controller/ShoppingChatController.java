@@ -166,6 +166,37 @@ public class ShoppingChatController {
     }
 
     /**
+     * DB 초기화 및 상품 데이터 수집 API
+     * 
+     * DB가 비어있을 때 네이버 API를 호출하여 상품 데이터를 수집합니다.
+     * 
+     * @param request 초기화 요청 (query, sessionId, userId, languageCode)
+     * @return 초기화 성공 메시지
+     */
+    @PostMapping("/init-db")
+    public ResponseEntity<String> initDatabase(@Valid @RequestBody MessageRequest request) {
+        log.info("DB 초기화 요청 - 쿼리: {}", request.getMessage());
+
+        try {
+            // DB 상태 확인 및 데이터 수집
+            long totalItems = simpleShoppingService.countTotalProducts();
+            
+            if (totalItems == 0) {
+                log.info("DB가 비어있음 - 네이버 API 호출하여 데이터 수집");
+                simpleShoppingService.initDatabaseWithNaverApi(request.getMessage());
+                return ResponseEntity.ok("DB 초기화 완료 - " + totalItems + "개의 상품을 데이터베이스에 추가했습니다.");
+            } else {
+                log.info("DB에 이미 {}개의 상품이 존재함", totalItems);
+                return ResponseEntity.ok("DB가 이미 초기화되어 있습니다. (" + totalItems + "개 상품)");
+            }
+
+        } catch (Exception e) {
+            log.error("DB 초기화 실패", e);
+            return ResponseEntity.internalServerError().body("DB 초기화 실패: " + e.getMessage());
+        }
+    }
+
+    /**
      * 브랜드별 상품 검색 API
      * 
      * 특정 브랜드의 상품들을 검색합니다.

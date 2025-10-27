@@ -11,6 +11,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  * RAG 모델 의도분석 결과를 기반으로 동적 SQL 쿼리를 생성하는 서비스
@@ -55,7 +57,7 @@ public class DynamicSqlQueryService {
                 return generateBrandSearchQuery(query, confidence);
             case "category_search":
                 return generateCategorySearchQuery(query, confidence);
-            case "price_range_search":
+            case "lprice_range_search":
                 return generatePriceRangeQuery(query, confidence);
             default:
                 log.warn("알 수 없는 의도: {}, 기본 검색 쿼리 생성", intent);
@@ -73,39 +75,50 @@ public class DynamicSqlQueryService {
         Map<String, Object> parameters = new HashMap<>();
         
         // 기본 검색 조건
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
-        // 신뢰도에 따른 검색 전략
+        // 브랜드 필터 추출 (DB 기반)
+        String brand = extractBrand(query);
+        if (brand != null) {
+            sql.append("brand LIKE :brandFilter ");
+            parameters.put("brandFilter", "%" + brand + "%");
+            log.info("추출된 브랜드: {}", brand);
+        } else {
+            // 브랜드 매칭 실패 시 일반 키워드 검색으로 폴백
+            log.info("브랜드 매칭 실패 - 일반 키워드 검색으로 폴백");
+            sql.append("(title LIKE :query OR brand LIKE :query) ");
+            parameters.put("query", "%" + query + "%");
+        }
+        
+        // 신뢰도에 따른 추가 검색 조건
         if (confidence > 0.8f) {
             // 높은 신뢰도: 정확한 매칭 우선
-            sql.append("(title LIKE :exactTitle OR brand LIKE :exactBrand) ");
+            sql.append("AND (title LIKE :exactTitle OR brand LIKE :exactBrand) ");
             parameters.put("exactTitle", "%" + query + "%");
             parameters.put("exactBrand", "%" + query + "%");
         } else if (confidence > 0.6f) {
             // 중간 신뢰도: 키워드 분리 검색
             String[] keywords = extractKeywords(query);
-            sql.append("(");
-            for (int i = 0; i < keywords.length; i++) {
-                if (i > 0) sql.append(" AND ");
-                sql.append("(title LIKE :keyword").append(i).append(" OR brand LIKE :keyword").append(i).append(")");
-                parameters.put("keyword" + i, "%" + keywords[i] + "%");
+            if (keywords.length > 1) {
+                sql.append("AND (");
+                for (int i = 0; i < keywords.length; i++) {
+                    if (i > 0) sql.append(" AND ");
+                    sql.append("(title LIKE :keyword").append(i).append(" OR brand LIKE :keyword").append(i).append(")");
+                    parameters.put("keyword" + i, "%" + keywords[i] + "%");
+                }
+                sql.append(")");
             }
-            sql.append(")");
-        } else {
-            // 낮은 신뢰도: 유연한 검색
-            sql.append("(title LIKE :flexibleTitle OR brand LIKE :flexibleBrand OR category1 LIKE :flexibleCategory) ");
-            parameters.put("flexibleTitle", "%" + query + "%");
-            parameters.put("flexibleBrand", "%" + query + "%");
-            parameters.put("flexibleCategory", "%" + query + "%");
         }
         
-        // 정렬 조건
-        sql.append(" ORDER BY ");
-        if (confidence > 0.7f) {
-            sql.append("CASE WHEN title LIKE :orderTitle THEN 1 ELSE 2 END, ");
-            parameters.put("orderTitle", "%" + query + "%");
-        }
-        sql.append("price ASC LIMIT 20");
+        // 정렬 방식 추출
+        String sortOrder = extractSortOrder(query);
+        sql.append(" ORDER BY lprice ").append(sortOrder);
+        log.info("추출된 정렬 방식: {}", sortOrder);
+        
+        // 개수 추출
+        Integer count = extractCount(query);
+        sql.append(" LIMIT ").append(count);
+        log.info("추출된 개수: {}", count);
         
         return new DynamicQueryResult(sql.toString(), parameters, "product_search");
     }
@@ -119,7 +132,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 추천 로직: 인기 상품 + 관련 상품
         if (confidence > 0.7f) {
@@ -143,7 +156,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 기본 검색 조건
         sql.append("(title LIKE :title OR brand LIKE :brand) ");
@@ -151,11 +164,11 @@ public class DynamicSqlQueryService {
         parameters.put("brand", "%" + query + "%");
         
         // 가격 필터 추출
-        PriceRange priceRange = extractPriceRange(query);
-        if (priceRange != null) {
-            sql.append("AND price BETWEEN :minPrice AND :maxPrice ");
-            parameters.put("minPrice", priceRange.minPrice);
-            parameters.put("maxPrice", priceRange.maxPrice);
+        PriceRange lpriceRange = extractPriceRange(query);
+        if (lpriceRange != null) {
+            sql.append("AND lprice BETWEEN :minPrice AND :maxPrice ");
+            parameters.put("minPrice", lpriceRange.minPrice);
+            parameters.put("maxPrice", lpriceRange.maxPrice);
         }
         
         // 브랜드 필터 추출
@@ -165,7 +178,7 @@ public class DynamicSqlQueryService {
             parameters.put("brandFilter", "%" + brand + "%");
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "product_filter");
     }
@@ -179,7 +192,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 비교 대상 상품들 추출
         String[] compareItems = extractCompareItems(query);
@@ -191,7 +204,7 @@ public class DynamicSqlQueryService {
         }
         sql.append(") ");
         
-        sql.append("ORDER BY price ASC LIMIT 10");
+        sql.append("ORDER BY lprice ASC LIMIT 10");
         
         return new DynamicQueryResult(sql.toString(), parameters, "product_compare");
     }
@@ -207,14 +220,14 @@ public class DynamicSqlQueryService {
         
         String brand = extractBrand(query);
         if (brand != null) {
-            sql.append("SELECT * FROM naver_shopping_item WHERE brand LIKE :brand ");
+            sql.append("SELECT * FROM naver_shopping_items WHERE brand LIKE :brand ");
             parameters.put("brand", "%" + brand + "%");
         } else {
-            sql.append("SELECT * FROM naver_shopping_item WHERE brand LIKE :query ");
+            sql.append("SELECT * FROM naver_shopping_items WHERE brand LIKE :query ");
             parameters.put("query", "%" + query + "%");
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "brand_search");
     }
@@ -228,11 +241,11 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         sql.append("(category1 LIKE :category OR category2 LIKE :category) ");
         parameters.put("category", "%" + query + "%");
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "category_search");
     }
@@ -246,7 +259,7 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         
         // 기본 검색 조건
         sql.append("(title LIKE :title OR brand LIKE :brand) ");
@@ -254,16 +267,16 @@ public class DynamicSqlQueryService {
         parameters.put("brand", "%" + query + "%");
         
         // 가격 범위 추출
-        PriceRange priceRange = extractPriceRange(query);
-        if (priceRange != null) {
-            sql.append("AND price BETWEEN :minPrice AND :maxPrice ");
-            parameters.put("minPrice", priceRange.minPrice);
-            parameters.put("maxPrice", priceRange.maxPrice);
+        PriceRange lpriceRange = extractPriceRange(query);
+        if (lpriceRange != null) {
+            sql.append("AND lprice BETWEEN :minPrice AND :maxPrice ");
+            parameters.put("minPrice", lpriceRange.minPrice);
+            parameters.put("maxPrice", lpriceRange.maxPrice);
         }
         
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
-        return new DynamicQueryResult(sql.toString(), parameters, "price_range_search");
+        return new DynamicQueryResult(sql.toString(), parameters, "lprice_range_search");
     }
     
     /**
@@ -275,12 +288,12 @@ public class DynamicSqlQueryService {
         StringBuilder sql = new StringBuilder();
         Map<String, Object> parameters = new HashMap<>();
         
-        sql.append("SELECT * FROM naver_shopping_item WHERE ");
+        sql.append("SELECT * FROM naver_shopping_items WHERE ");
         sql.append("(title LIKE :title OR brand LIKE :brand OR category1 LIKE :category) ");
         parameters.put("title", "%" + query + "%");
         parameters.put("brand", "%" + query + "%");
         parameters.put("category", "%" + query + "%");
-        sql.append("ORDER BY price ASC LIMIT 20");
+        sql.append("ORDER BY lprice ASC LIMIT 20");
         
         return new DynamicQueryResult(sql.toString(), parameters, "fallback");
     }
@@ -289,14 +302,24 @@ public class DynamicSqlQueryService {
      * 네이티브 SQL 쿼리 실행
      * 
      * @param sql 실행할 SQL 쿼리
+     * @param parameters 쿼리 파라미터
      * @return 검색된 상품 목록
      */
     @Transactional(readOnly = true)
-    public List<NaverShoppingItem> executeNativeQuery(String sql) {
+    public List<NaverShoppingItem> executeNativeQuery(String sql, Map<String, Object> parameters) {
         try {
             log.info("네이티브 SQL 쿼리 실행: {}", sql);
+            log.info("파라미터: {}", parameters);
             
             Query query = entityManager.createNativeQuery(sql, NaverShoppingItem.class);
+            
+            // 파라미터 바인딩
+            if (parameters != null) {
+                for (Map.Entry<String, Object> entry : parameters.entrySet()) {
+                    query.setParameter(entry.getKey(), entry.getValue());
+                }
+            }
+            
             @SuppressWarnings("unchecked")
             List<NaverShoppingItem> results = query.getResultList();
             
@@ -328,16 +351,210 @@ public class DynamicSqlQueryService {
     }
     
     /**
-     * 검색어에서 브랜드 추출
+     * 검색어에서 브랜드 추출 (브랜드 검색 → 결과 없으면 null 반환하여 일반 검색으로 폴백)
      */
     private String extractBrand(String query) {
-        String[] brands = {"나이키", "nike", "아디다스", "adidas", "퓨마", "puma", "뉴발란스", "new balance"};
-        for (String brand : brands) {
-            if (query.toLowerCase().contains(brand.toLowerCase())) {
-                return brand;
+        // DB에서 실제 브랜드 목록 조회
+        List<String> existingBrands = getBrandsFromDatabase();
+        
+        // 입력된 키워드의 언어 구분
+        boolean isKoreanInput = isKoreanText(query);
+        log.info("입력 언어 구분: {} (한글: {})", query, isKoreanInput);
+        
+        String matchedBrand = null;
+        
+        if (isKoreanInput) {
+            // 한글 입력 → 한글 브랜드 검색
+            matchedBrand = findKoreanBrand(query, existingBrands);
+            if (matchedBrand == null) {
+                // 한글 브랜드 검색 실패 → null 반환하여 일반 키워드 검색으로 폴백
+                log.info("한글 브랜드 검색 실패 → 일반 키워드 검색으로 폴백");
+                return null;
+            }
+            log.info("브랜드 매칭 성공: {} → {}", query, matchedBrand);
+            return matchedBrand;
+        } else {
+            // 영어 입력 → 영어 브랜드 검색
+            matchedBrand = findEnglishBrand(query, existingBrands);
+            if (matchedBrand == null) {
+                // 영어 브랜드 검색 실패 → null 반환하여 일반 키워드 검색으로 폴백
+                log.info("영어 브랜드 검색 실패 → 일반 키워드 검색으로 폴백");
+                return null;
+            }
+            log.info("브랜드 매칭 성공: {} → {}", query, matchedBrand);
+            return matchedBrand;
+        }
+    }
+    
+    /**
+     * 입력된 텍스트가 한글인지 구분
+     */
+    private boolean isKoreanText(String text) {
+        // 한글 문자 범위: \uAC00-\uD7AF (완성형 한글)
+        // 한글 자모 범위: \u1100-\u11FF (한글 자모)
+        // 한글 호환 자모 범위: \u3130-\u318F (한글 호환 자모)
+        return text.matches(".*[\\uAC00-\\uD7AF\\u1100-\\u11FF\\u3130-\\u318F].*");
+    }
+    
+    
+    /**
+     * 한글 브랜드 매칭
+     */
+    private String findKoreanBrand(String query, List<String> existingBrands) {
+        for (String brand : existingBrands) {
+            if (brand != null && !brand.trim().isEmpty()) {
+                // 정확한 매칭 (대소문자 무시)
+                if (query.toLowerCase().contains(brand.toLowerCase())) {
+                    return brand;
+                }
+                
+                // 부분 매칭 (브랜드명이 긴 경우)
+                if (brand.toLowerCase().contains(query.toLowerCase()) && 
+                    query.length() >= 2) {
+                    return brand;
+                }
             }
         }
         return null;
+    }
+    
+    /**
+     * 영어 브랜드 매칭 (직접 매칭만)
+     */
+    private String findEnglishBrand(String query, List<String> existingBrands) {
+        // 영어 브랜드 직접 매칭
+        for (String brand : existingBrands) {
+            if (brand != null && !brand.trim().isEmpty()) {
+                // 정확한 매칭 (대소문자 무시)
+                if (query.toLowerCase().contains(brand.toLowerCase())) {
+                    return brand;
+                }
+                
+                // 부분 매칭 (브랜드명이 긴 경우)
+                if (brand.toLowerCase().contains(query.toLowerCase()) && 
+                    query.length() >= 2) {
+                    return brand;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    
+    // 브랜드 목록 캐시 (메모리에 저장)
+    private List<String> cachedBrands = null;
+    
+    /**
+     * DB에서 실제 브랜드 목록 조회 (캐싱 적용)
+     */
+    private List<String> getBrandsFromDatabase() {
+        // 캐시가 있으면 재사용
+        if (cachedBrands != null) {
+            log.debug("캐시된 브랜드 목록 사용 ({}개)", cachedBrands.size());
+            return cachedBrands;
+        }
+        
+        // 1. DB에서 브랜드 조회
+        String sql = "SELECT DISTINCT brand FROM naver_shopping_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand";
+        
+        List<String> dbBrands = new ArrayList<>();
+        try {
+            Query query = entityManager.createNativeQuery(sql);
+            @SuppressWarnings("unchecked")
+            List<String> brands = query.getResultList();
+            dbBrands = brands;
+            log.info("DB에서 조회된 브랜드 수: {}", dbBrands.size());
+        } catch (Exception e) {
+            log.error("브랜드 목록 조회 중 오류 발생", e);
+        }
+        
+        // 2. 하드코딩된 일반 브랜드 목록 추가 (DB에 없어도 인식 가능)
+        List<String> commonBrands = List.of(
+            "나이키", "nike", "아디다스", "adidas", "퓨마", "puma",
+            "뉴발란스", "new balance", "컨버스", "converse",
+            "반스", "vans", "조던", "jordan", "언더아머", "under armour",
+            "아식스", "asics", "뉴에라", "new era",
+            "아이폰", "iphone", "삼성", "samsung", "갤럭시", "galaxy",
+            "LG", "lg", "샤오미", "xiaomi", "화웨이", "huawei"
+        );
+        
+        // 3. DB 브랜드 + 일반 브랜드 합치기
+        List<String> allBrands = new ArrayList<>(dbBrands);
+        for (String brand : commonBrands) {
+            if (!allBrands.contains(brand)) {
+                allBrands.add(brand);
+            }
+        }
+        
+        log.info("전체 브랜드 수: {} (DB: {}, 추가: {})", 
+                allBrands.size(), dbBrands.size(), allBrands.size() - dbBrands.size());
+        
+        // 캐시에 저장
+        cachedBrands = allBrands;
+        return allBrands;
+    }
+    
+    /**
+     * 검색어에서 개수 추출
+     */
+    private Integer extractCount(String query) {
+        // 다양한 패턴 시도
+        String[] patterns = {
+            "(\\d+)개",           // "5개"
+            "(\\d+)개씩",         // "5개씩"
+            "(\\d+)개만",         // "5개만"
+            "(\\d+)개 정도",      // "5개 정도"
+            "(\\d+)개 정도로",    // "5개 정도로"
+            "(\\d+)개 정도만",    // "5개 정도만"
+            "(\\d+)개만큼",       // "5개만큼"
+            "(\\d+)개 정도만큼",  // "5개 정도만큼"
+            "(\\d+)개 정도만큼만", // "5개 정도만큼만"
+            "(\\d+)개 정도만큼만큼" // "5개 정도만큼만큼"
+        };
+        
+        for (String patternStr : patterns) {
+            try {
+                Pattern pattern = Pattern.compile(patternStr);
+                Matcher matcher = pattern.matcher(query);
+                
+                if (matcher.find()) {
+                    int count = Integer.parseInt(matcher.group(1));
+                    
+                    // 유효 범위 체크 (1~100개)
+                    if (count > 0 && count <= 100) {
+                        log.info("추출된 개수: {} (패턴: {})", count, patternStr);
+                        return count;
+                    } else {
+                        log.warn("개수가 범위를 벗어남: {} (패턴: {})", count, patternStr);
+                        return 5; // 기본값
+                    }
+                }
+            } catch (NumberFormatException e) {
+                log.error("숫자 변환 오류 (패턴: {}): {}", patternStr, e.getMessage());
+                continue; // 다음 패턴 시도
+            } catch (Exception e) {
+                log.error("개수 추출 중 오류 발생 (패턴: {}): {}", patternStr, e.getMessage());
+                continue; // 다음 패턴 시도
+            }
+        }
+        
+        log.info("개수 추출 실패 - 기본값 사용: 20");
+        return 5; // 기본값
+    }
+    
+    /**
+     * 검색어에서 정렬 방식 추출
+     */
+    private String extractSortOrder(String query) {
+        if (query.contains("최저가") || query.contains("낮은 가격") || query.contains("저렴한") || 
+            query.contains("싼") || query.contains("최소")) {
+            return "ASC";
+        } else if (query.contains("최고가") || query.contains("높은 가격") || query.contains("비싼") || 
+                   query.contains("최대") || query.contains("고가")) {
+            return "DESC";
+        }
+        return "ASC"; // 기본값
     }
     
     /**
@@ -369,15 +586,25 @@ public class DynamicSqlQueryService {
         private final String sql;
         private final Map<String, Object> parameters;
         private final String intentType;
+        private final String message;
         
         public DynamicQueryResult(String sql, Map<String, Object> parameters, String intentType) {
             this.sql = sql;
             this.parameters = parameters;
             this.intentType = intentType;
+            this.message = null;
+        }
+        
+        public DynamicQueryResult(String sql, Map<String, Object> parameters, String intentType, String message) {
+            this.sql = sql;
+            this.parameters = parameters;
+            this.intentType = intentType;
+            this.message = message;
         }
         
         public String getSql() { return sql; }
         public Map<String, Object> getParameters() { return parameters; }
         public String getIntentType() { return intentType; }
+        public String getMessage() { return message; }
     }
 }
