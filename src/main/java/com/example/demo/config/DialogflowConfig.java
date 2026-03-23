@@ -32,9 +32,15 @@ public class DialogflowConfig {
             );
         } else {
             // 로컬 개발환경에서는 파일 사용
-            credentials = GoogleCredentials.fromStream(
-                new ClassPathResource("credentials/dialogflow-service-account.json").getInputStream()
-            );
+            ClassPathResource resource = new ClassPathResource("credentials/dialogflow-service-account.json");
+            if (!resource.exists()) {
+                throw new IllegalStateException(
+                    "Dialogflow가 활성화되었지만 인증 파일을 찾을 수 없습니다. " +
+                    "src/main/resources/credentials/dialogflow-service-account.json 경로에 서비스 계정 키를 배치하거나, " +
+                    "DIALOGFLOW_CREDENTIALS 환경변수를 설정하세요."
+                );
+            }
+            credentials = GoogleCredentials.fromStream(resource.getInputStream());
         }
 
         SessionsSettings settings = SessionsSettings.newBuilder()

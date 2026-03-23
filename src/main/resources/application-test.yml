@@ -24,7 +24,7 @@ openai:
 
 dialogflow:
   project-id: hybrid-chatbot-test
-  credentials-path: ${DIALOGFLOW_CREDENTIALS_PATH:}
+  enabled: false
 
 logging:
   level:
