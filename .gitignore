@@ -2,6 +2,9 @@
 # --- 민감 정보 (API 키, 인증서 등) ---
 credentials/
 application.properties
+.env
+.env.local
+.env.*.local
 
 # 민감한 환경 설정 파일
 application-dev.yml

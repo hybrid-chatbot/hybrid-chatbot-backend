@@ -43,6 +43,13 @@ public class ChatOrchestratorService {
                     request.getLanguageCode()
             );
 
+            // Dialogflow가 비활성화된 경우 (NoOp 구현체) null 반환 → AI 서버로 직접 위임
+            if (dialogflowResponse == null) {
+                log.info("Dialogflow 비활성화 상태 - AI 서버로 직접 의도 분류를 위임합니다.");
+                handleLowConfidenceIntent(request, "unknown", 0.0f, traceBuilder);
+                return;
+            }
+
             String originalIntentName = dialogflowResponse.getQueryResult().getIntent().getDisplayName();
             float intentScore = dialogflowResponse.getQueryResult().getIntentDetectionConfidence();
             String dialogflowReply = dialogflowResponse.getQueryResult().getFulfillmentText();

@@ -1,0 +1,13 @@
+# 로컬 개발 환경 설정
+# Kafka 비활성화 (Docker 없이 실행 가능)
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  kafka:
+    listener:
+      auto-startup: false
+
+# Dialogflow 비활성화 (인증키 없이 실행 가능)
+dialogflow:
+  enabled: false

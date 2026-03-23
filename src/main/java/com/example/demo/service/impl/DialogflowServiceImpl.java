@@ -3,10 +3,12 @@ package com.example.demo.service.impl;
 import com.google.cloud.dialogflow.v2.*;
 import com.example.demo.service.DialogflowService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
+@ConditionalOnProperty(name = "dialogflow.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class DialogflowServiceImpl implements DialogflowService {
